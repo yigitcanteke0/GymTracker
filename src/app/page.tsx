@@ -10,14 +10,35 @@ export default async function DashboardPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: recentWorkouts } = user
+  // Son tamamlanmış antrenmanlardan fazlasını çekip 0 setli olanları filtrele
+  const { data: recentRaw } = user
     ? await supabase
         .from('workouts')
         .select('*')
         .not('finished_at', 'is', null)
         .order('started_at', { ascending: false })
-        .limit(5)
+        .limit(15)
     : { data: null }
+
+  const recentIds = recentRaw?.map(w => w.id) ?? []
+  const { data: recentSetCounts } = user && recentIds.length > 0
+    ? await supabase
+        .from('workout_sets')
+        .select('workout_id')
+        .in('workout_id', recentIds)
+    : { data: null }
+
+  const recentCountMap = (recentSetCounts ?? []).reduce<Record<string, number>>(
+    (acc, s) => {
+      acc[s.workout_id] = (acc[s.workout_id] ?? 0) + 1
+      return acc
+    },
+    {}
+  )
+
+  const recentWorkouts = (recentRaw ?? [])
+    .filter(w => (recentCountMap[w.id] ?? 0) > 0)
+    .slice(0, 5)
 
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
   const { data: weekSets } = user

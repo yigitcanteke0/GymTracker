@@ -31,6 +31,7 @@ export function EditWorkoutClient({
   const [deleting, setDeleting] = useState(false)
 
   const handleSelectExercise = useCallback((exercise: Exercise) => {
+    // Edit modunda previousSets ignore — kullanıcı zaten geçmişi düzenliyor
     setExercises(prev => {
       const order = prev.length + 1
       const last = prev[prev.length - 1]?.sets.slice(-1)[0]

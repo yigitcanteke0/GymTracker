@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { ActiveExercise, Exercise, SetType } from '@/types'
+import type { PreviousSet } from '@/lib/last-performance'
 import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
 import { WorkoutTimer } from '@/components/workout/workout-timer'
@@ -18,11 +19,20 @@ export default function ActiveWorkoutPage() {
 
   const [workoutName, setWorkoutName] = useState('')
   const [exercises, setExercises] = useState<ActiveExercise[]>([])
+  const [previousSetsMap, setPreviousSetsMap] = useState<Record<string, PreviousSet[]>>({})
   const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(false)
 
   const handleSelectExercise = useCallback(
-    (exercise: Exercise) => {
+    (exercise: Exercise, previousSets?: PreviousSet[]) => {
+      // Önceki setleri sakla (varsa)
+      if (previousSets && previousSets.length > 0) {
+        setPreviousSetsMap(prev => ({ ...prev, [exercise.id]: previousSets }))
+      }
+
+      // Yeni setin başlangıç değerleri için önceki seti referans al
+      const firstPrev = previousSets?.[0]
+
       setExercises(prev => {
         const order = prev.length + 1
         const newExercise: ActiveExercise = {
@@ -32,9 +42,9 @@ export default function ActiveWorkoutPage() {
             {
               exercise_order: order,
               set_number: 1,
-              weight_kg: 0,
-              reps: 10,
-              rir: 2,
+              weight_kg: firstPrev?.weight_kg ?? 0,
+              reps: firstPrev?.reps ?? 10,
+              rir: firstPrev?.rir ?? 2,
               set_type: 'working' as SetType,
               completed: false,
             },
@@ -188,6 +198,7 @@ export default function ActiveWorkoutPage() {
             <ExerciseCard
               key={`${eg.exercise.id}-${eg.exercise_order}`}
               exerciseGroup={eg}
+              previousSets={previousSetsMap[eg.exercise.id]}
               onChange={updated => handleExerciseChange(idx, updated)}
               onRemove={() => handleRemoveExercise(idx)}
             />

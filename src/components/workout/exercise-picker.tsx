@@ -1,13 +1,20 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Search, X, Star, Clock } from 'lucide-react'
+import { Search, X, Star, Clock, History as HistoryIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup } from '@/types'
 import { cn } from '@/lib/utils'
+import {
+  fetchLastPerformanceMap,
+  summarizeLastPerformance,
+  type LastPerformance,
+  type LastPerformanceMap,
+  type PreviousSet,
+} from '@/lib/last-performance'
 
 interface ExercisePickerProps {
-  onSelect: (exercise: Exercise) => void
+  onSelect: (exercise: Exercise, previousSets?: PreviousSet[]) => void
   onClose: () => void
 }
 
@@ -15,7 +22,7 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([])
-  const [recentIds, setRecentIds] = useState<string[]>([])
+  const [lastPerfMap, setLastPerfMap] = useState<LastPerformanceMap>({})
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -23,39 +30,33 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [{ data: ex }, { data: mg }, { data: recent }] = await Promise.all([
+    const [{ data: ex }, { data: mg }, perfMap] = await Promise.all([
       supabase
         .from('exercises')
         .select('*, muscle_group:muscle_groups(*)')
         .order('is_favorite', { ascending: false })
         .order('name'),
       supabase.from('muscle_groups').select('*').order('name'),
-      supabase
-        .from('workout_sets')
-        .select('exercise_id, completed_at')
-        .order('completed_at', { ascending: false })
-        .limit(200),
+      fetchLastPerformanceMap(supabase),
     ])
 
     setExercises(ex ?? [])
     setMuscleGroups(mg ?? [])
-
-    const seen = new Set<string>()
-    const recentOrdered: string[] = []
-    for (const r of recent ?? []) {
-      if (r.exercise_id && !seen.has(r.exercise_id)) {
-        seen.add(r.exercise_id)
-        recentOrdered.push(r.exercise_id)
-        if (recentOrdered.length >= 12) break
-      }
-    }
-    setRecentIds(recentOrdered)
+    setLastPerfMap(perfMap)
     setLoading(false)
   }, [supabase])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  // Son kullanılan egzersizler — lastPerfMap'in workoutDate'ine göre DESC sıralı
+  const recentIds = useMemo(() => {
+    return Object.entries(lastPerfMap)
+      .sort((a, b) => (b[1].workoutDate > a[1].workoutDate ? 1 : -1))
+      .map(([id]) => id)
+      .slice(0, 12)
+  }, [lastPerfMap])
 
   const filtered = useMemo(
     () =>
@@ -78,6 +79,10 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   const favorites = filtered.filter(e => e.is_favorite && !recentSet.has(e.id))
   const favoriteSet = new Set(favorites.map(e => e.id))
   const rest = filtered.filter(e => !recentSet.has(e.id) && !favoriteSet.has(e.id))
+
+  const handleSelect = (exercise: Exercise) => {
+    onSelect(exercise, lastPerfMap[exercise.id]?.sets)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-stone-950 animate-fade-up">
@@ -141,7 +146,7 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
         {loading ? (
           <div className="grid grid-cols-2 gap-2">
             {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-[88px] rounded-xl bg-stone-900/60 animate-pulse" />
+              <div key={i} className="h-[112px] rounded-xl bg-stone-900/60 animate-pulse" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -152,13 +157,30 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
         ) : (
           <div className="space-y-6">
             {recentExercises.length > 0 && (
-              <Section icon={<Clock size={11} />} label="Son Kullanılan" exercises={recentExercises} onSelect={onSelect} />
+              <Section
+                icon={<Clock size={11} />}
+                label="Son Kullanılan"
+                exercises={recentExercises}
+                lastPerfMap={lastPerfMap}
+                onSelect={handleSelect}
+              />
             )}
             {favorites.length > 0 && (
-              <Section icon={<Star size={11} />} label="Favoriler" exercises={favorites} onSelect={onSelect} />
+              <Section
+                icon={<Star size={11} />}
+                label="Favoriler"
+                exercises={favorites}
+                lastPerfMap={lastPerfMap}
+                onSelect={handleSelect}
+              />
             )}
             {rest.length > 0 && (
-              <Section label="Tüm Egzersizler" exercises={rest} onSelect={onSelect} />
+              <Section
+                label="Tüm Egzersizler"
+                exercises={rest}
+                lastPerfMap={lastPerfMap}
+                onSelect={handleSelect}
+              />
             )}
           </div>
         )}
@@ -171,11 +193,13 @@ function Section({
   icon,
   label,
   exercises,
+  lastPerfMap,
   onSelect,
 }: {
   icon?: React.ReactNode
   label: string
   exercises: Exercise[]
+  lastPerfMap: LastPerformanceMap
   onSelect: (e: Exercise) => void
 }) {
   return (
@@ -186,7 +210,12 @@ function Section({
       </p>
       <div className="grid grid-cols-2 gap-2">
         {exercises.map(e => (
-          <ExerciseTile key={e.id} exercise={e} onSelect={onSelect} />
+          <ExerciseTile
+            key={e.id}
+            exercise={e}
+            lastPerf={lastPerfMap[e.id]}
+            onSelect={onSelect}
+          />
         ))}
       </div>
     </div>
@@ -195,16 +224,20 @@ function Section({
 
 function ExerciseTile({
   exercise,
+  lastPerf,
   onSelect,
 }: {
   exercise: Exercise
+  lastPerf?: LastPerformance
   onSelect: (e: Exercise) => void
 }) {
   const mg = exercise.muscle_group as MuscleGroup | undefined
+  const summary = lastPerf ? summarizeLastPerformance(lastPerf) : null
+
   return (
     <button
       onClick={() => onSelect(exercise)}
-      className="relative flex flex-col items-start gap-2 p-3.5 rounded-xl bg-stone-900/60 border border-stone-800/80 hover:border-stone-700 hover:bg-stone-900 active:scale-[0.98] transition-all text-left min-h-[96px]"
+      className="relative flex flex-col items-start gap-2 p-3.5 rounded-xl bg-stone-900/60 border border-stone-800/80 hover:border-stone-700 hover:bg-stone-900 active:scale-[0.98] transition-all text-left min-h-[112px]"
     >
       {exercise.is_favorite && (
         <Star
@@ -217,11 +250,19 @@ function ExerciseTile({
       <span className="text-stone-50 text-[13px] font-medium leading-tight line-clamp-2">
         {exercise.name}
       </span>
-      {mg && (
-        <span className="text-[10px] text-stone-500 mt-auto leading-tight">
-          {mg.name} · <span className="text-stone-600">{exercise.equipment}</span>
-        </span>
-      )}
+      <div className="mt-auto w-full space-y-1">
+        {mg && (
+          <span className="text-[10px] text-stone-500 leading-tight block">
+            {mg.name} · <span className="text-stone-600">{exercise.equipment}</span>
+          </span>
+        )}
+        {summary && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-accent-400 bg-accent-950/40 border border-accent-900/40 rounded-md px-1.5 py-0.5 tnum">
+            <HistoryIcon size={9} strokeWidth={2.5} />
+            {summary}
+          </span>
+        )}
+      </div>
     </button>
   )
 }

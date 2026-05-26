@@ -9,13 +9,13 @@ export const dynamic = 'force-dynamic'
 export default async function HistoryPage() {
   const supabase = await createClient()
 
-  const { data: workouts } = await supabase
+  const { data: rawWorkouts } = await supabase
     .from('workouts')
     .select('*')
     .not('finished_at', 'is', null)
     .order('started_at', { ascending: false })
 
-  const workoutIds = workouts?.map(w => w.id) ?? []
+  const workoutIds = rawWorkouts?.map(w => w.id) ?? []
   const { data: setCounts } = await supabase
     .from('workout_sets')
     .select('workout_id')
@@ -25,6 +25,9 @@ export default async function HistoryPage() {
     acc[s.workout_id] = (acc[s.workout_id] ?? 0) + 1
     return acc
   }, {})
+
+  // 0 setli antrenmanları gizle
+  const workouts = (rawWorkouts ?? []).filter(w => (countMap[w.id] ?? 0) > 0)
 
   return (
     <div className="min-h-screen bg-stone-950 pb-32">
