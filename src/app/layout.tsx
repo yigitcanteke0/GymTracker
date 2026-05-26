@@ -7,7 +7,6 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
 export const metadata: Metadata = {
   title: "Workout Tracker",
   description: "Kişisel antrenman takip uygulaması",
-  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {
