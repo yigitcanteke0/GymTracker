@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -8,41 +9,23 @@ import { Button } from '@/components/ui/button'
 export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [done, setDone] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const supabase = createClient()
+  const router = useRouter()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
+    const { error } = await supabase.auth.signUp({ email, password })
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
-      setDone(true)
+      router.push('/')
+      router.refresh()
     }
-  }
-
-  if (done) {
-    return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 text-center gap-4">
-        <span className="text-5xl">📧</span>
-        <h1 className="text-xl font-bold text-white">E-postanı kontrol et</h1>
-        <p className="text-zinc-400 text-sm max-w-xs">
-          {email} adresine doğrulama linki gönderdik. Linke tıkladıktan sonra giriş yapabilirsin.
-        </p>
-        <Link href="/login" className="text-indigo-400 text-sm mt-2">
-          Giriş sayfasına dön
-        </Link>
-      </div>
-    )
   }
 
   return (
