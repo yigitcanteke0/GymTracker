@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Play, History, Dumbbell, TrendingUp } from 'lucide-react'
+import { Play, TrendingUp } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 import { formatDate, formatDuration } from '@/lib/utils'
@@ -66,7 +66,7 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-24">
+    <div className="min-h-screen bg-zinc-950 pb-28">
       {/* Header */}
       <div className="px-4 pt-12 pb-6">
         <p className="text-zinc-400 text-sm">Merhaba 👋</p>
@@ -134,23 +134,6 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Bottom nav */}
-      <div className="fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur border-t border-zinc-800">
-        <div className="flex items-center justify-around px-4 py-3 pb-safe">
-          <Link href="/" className="flex flex-col items-center gap-1 text-indigo-400">
-            <Play size={22} />
-            <span className="text-xs">Antrenman</span>
-          </Link>
-          <Link href="/history" className="flex flex-col items-center gap-1 text-zinc-500">
-            <History size={22} />
-            <span className="text-xs">Geçmiş</span>
-          </Link>
-          <Link href="/exercises" className="flex flex-col items-center gap-1 text-zinc-500">
-            <Dumbbell size={22} />
-            <span className="text-xs">Egzersizler</span>
-          </Link>
-        </div>
-      </div>
     </div>
   )
 }

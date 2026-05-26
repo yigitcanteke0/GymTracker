@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
+import { FloatingNav } from "@/components/ui/floating-nav";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
@@ -24,7 +25,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" className={`${geist.variable} h-full`}>
-      <body className="min-h-full bg-zinc-950 antialiased">{children}</body>
+      <body className="min-h-full bg-zinc-950 antialiased">
+        {children}
+        <FloatingNav />
+      </body>
     </html>
   );
 }

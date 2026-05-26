@@ -9,6 +9,7 @@ import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
 import { WorkoutTimer } from '@/components/workout/workout-timer'
 import { Button } from '@/components/ui/button'
+import { LongPressButton } from '@/components/ui/long-press-button'
 
 export default function ActiveWorkoutPage() {
   const router = useRouter()
@@ -19,7 +20,6 @@ export default function ActiveWorkoutPage() {
   const [exercises, setExercises] = useState<ActiveExercise[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [showFinishConfirm, setShowFinishConfirm] = useState(false)
 
   const handleSelectExercise = useCallback(
     (exercise: Exercise) => {
@@ -201,40 +201,16 @@ export default function ActiveWorkoutPage() {
         </Button>
 
         {exercises.length > 0 && (
-          <>
-            {showFinishConfirm ? (
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="flex-1"
-                  onClick={() => setShowFinishConfirm(false)}
-                >
-                  İptal
-                </Button>
-                <Button
-                  variant="success"
-                  size="lg"
-                  className="flex-1"
-                  onClick={handleFinish}
-                  disabled={saving}
-                >
-                  <CheckCircle2 size={20} />
-                  {saving ? 'Kaydediliyor…' : 'Evet, Bitir'}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="lg"
-                className="w-full border-emerald-800 text-emerald-400 hover:bg-emerald-950/30"
-                onClick={() => setShowFinishConfirm(true)}
-              >
-                <CheckCircle2 size={20} />
-                Antrenmanı Bitir
-              </Button>
-            )}
-          </>
+          <LongPressButton
+            onComplete={handleFinish}
+            duration={1200}
+            disabled={saving}
+            holdingLabel="Bitiriliyor"
+            className="w-full h-14 rounded-xl border-2 border-emerald-700 bg-emerald-950/30 text-emerald-300 font-semibold text-base"
+          >
+            <CheckCircle2 size={20} />
+            {saving ? 'Kaydediliyor…' : 'Antrenmanı Bitir — Basılı Tut'}
+          </LongPressButton>
         )}
       </div>
     </div>

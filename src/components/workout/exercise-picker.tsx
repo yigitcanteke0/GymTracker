@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Search, X, Star } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Search, X, Star, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup } from '@/types'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([])
+  const [recentIds, setRecentIds] = useState<string[]>([]) // sıralı, en son kullanılan ilk
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -22,16 +23,34 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
 
   const fetchData = useCallback(async () => {
     setLoading(true)
-    const [{ data: ex }, { data: mg }] = await Promise.all([
+    const [{ data: ex }, { data: mg }, { data: recent }] = await Promise.all([
       supabase
         .from('exercises')
         .select('*, muscle_group:muscle_groups(*)')
         .order('is_favorite', { ascending: false })
         .order('name'),
       supabase.from('muscle_groups').select('*').order('name'),
+      supabase
+        .from('workout_sets')
+        .select('exercise_id, completed_at')
+        .order('completed_at', { ascending: false })
+        .limit(200),
     ])
+
     setExercises(ex ?? [])
     setMuscleGroups(mg ?? [])
+
+    // Sıralı, tekrarsız ID listesi — en son kullanılan ilk
+    const seen = new Set<string>()
+    const recentOrdered: string[] = []
+    for (const r of recent ?? []) {
+      if (r.exercise_id && !seen.has(r.exercise_id)) {
+        seen.add(r.exercise_id)
+        recentOrdered.push(r.exercise_id)
+        if (recentOrdered.length >= 12) break
+      }
+    }
+    setRecentIds(recentOrdered)
     setLoading(false)
   }, [supabase])
 
@@ -39,14 +58,28 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
     fetchData()
   }, [fetchData])
 
-  const filtered = exercises.filter(e => {
-    const matchesQuery = e.name.toLowerCase().includes(query.toLowerCase())
-    const matchesGroup = !selectedGroup || e.muscle_group_id === selectedGroup
-    return matchesQuery && matchesGroup
-  })
+  const filtered = useMemo(
+    () =>
+      exercises.filter(e => {
+        const matchesQuery = e.name.toLowerCase().includes(query.toLowerCase())
+        const matchesGroup = !selectedGroup || e.muscle_group_id === selectedGroup
+        return matchesQuery && matchesGroup
+      }),
+    [exercises, query, selectedGroup]
+  )
 
-  const favorites = filtered.filter(e => e.is_favorite)
-  const rest = filtered.filter(e => !e.is_favorite)
+  // Filtreden geçen son kullanılanları, sıralı bir şekilde topla
+  const recentExercises = useMemo(() => {
+    const map = new Map(filtered.map(e => [e.id, e]))
+    return recentIds
+      .map(id => map.get(id))
+      .filter((e): e is Exercise => !!e)
+  }, [recentIds, filtered])
+
+  const recentSet = new Set(recentExercises.map(e => e.id))
+  const favorites = filtered.filter(e => e.is_favorite && !recentSet.has(e.id))
+  const favoriteSet = new Set(favorites.map(e => e.id))
+  const rest = filtered.filter(e => !recentSet.has(e.id) && !favoriteSet.has(e.id))
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
@@ -101,28 +134,23 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
         ))}
       </div>
 
-      {/* Exercise list */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Grid list */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="flex items-center justify-center h-40 text-zinc-500">Yükleniyor…</div>
         ) : filtered.length === 0 ? (
           <div className="flex items-center justify-center h-40 text-zinc-500">Egzersiz bulunamadı</div>
         ) : (
-          <div className="p-4 space-y-1">
-            {favorites.length > 0 && (
-              <>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-2 pb-1">
-                  Favoriler
-                </p>
-                {favorites.map(e => (
-                  <ExerciseRow key={e.id} exercise={e} onSelect={onSelect} />
-                ))}
-                <div className="h-px bg-zinc-800 my-2" />
-              </>
+          <div className="space-y-5">
+            {recentExercises.length > 0 && (
+              <Section icon={<Clock size={12} />} label="Son Kullanılan" exercises={recentExercises} onSelect={onSelect} />
             )}
-            {rest.map(e => (
-              <ExerciseRow key={e.id} exercise={e} onSelect={onSelect} />
-            ))}
+            {favorites.length > 0 && (
+              <Section icon={<Star size={12} />} label="Favoriler" exercises={favorites} onSelect={onSelect} />
+            )}
+            {rest.length > 0 && (
+              <Section label="Tüm Egzersizler" exercises={rest} onSelect={onSelect} />
+            )}
           </div>
         )}
       </div>
@@ -130,28 +158,57 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   )
 }
 
-function ExerciseRow({
+function Section({
+  icon,
+  label,
+  exercises,
+  onSelect,
+}: {
+  icon?: React.ReactNode
+  label: string
+  exercises: Exercise[]
+  onSelect: (e: Exercise) => void
+}) {
+  return (
+    <div>
+      <p className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider px-1 pb-2">
+        {icon}
+        {label}
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {exercises.map(e => (
+          <ExerciseTile key={e.id} exercise={e} onSelect={onSelect} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ExerciseTile({
   exercise,
   onSelect,
 }: {
   exercise: Exercise
   onSelect: (e: Exercise) => void
 }) {
+  const mg = exercise.muscle_group as MuscleGroup | undefined
   return (
     <button
       onClick={() => onSelect(exercise)}
-      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-zinc-800 active:bg-zinc-700 transition-all text-left"
+      className="relative flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all text-left min-h-[88px]"
     >
+      {exercise.is_favorite && (
+        <Star size={12} className="absolute top-2 right-2 text-amber-400" fill="currentColor" />
+      )}
       <span className="text-2xl">{exercise.icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-white font-medium truncate">{exercise.name}</p>
-        {exercise.muscle_group && (
-          <p className="text-xs text-zinc-500">
-            {exercise.muscle_group.icon} {exercise.muscle_group.name} · {exercise.equipment}
-          </p>
-        )}
-      </div>
-      {exercise.is_favorite && <Star size={14} className="text-amber-400 shrink-0" />}
+      <span className="text-white text-sm font-medium leading-tight line-clamp-2">
+        {exercise.name}
+      </span>
+      {mg && (
+        <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-auto">
+          {mg.name} · {exercise.equipment}
+        </span>
+      )}
     </button>
   )
 }

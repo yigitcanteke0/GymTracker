@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Clock, Dumbbell } from 'lucide-react'
+import { ArrowLeft, Clock, Dumbbell, Pencil } from 'lucide-react'
 import { formatDate, formatDuration } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -68,6 +68,12 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
             </h1>
             <p className="text-xs text-zinc-500">{formatDate(workout.started_at)}</p>
           </div>
+          <Link
+            href={`/workout/${id}/edit`}
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-all"
+          >
+            <Pencil size={15} />
+          </Link>
           <WorkoutExportButton workoutId={id} workoutName={workout.name} />
         </div>
       </div>
