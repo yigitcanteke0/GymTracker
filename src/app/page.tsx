@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Play, TrendingUp } from 'lucide-react'
+import { Play, TrendingUp, ChevronRight, Calendar, Dumbbell } from 'lucide-react'
+import { formatDate, formatDuration } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
-import { formatDate, formatDuration } from '@/lib/utils'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -41,24 +41,30 @@ export default async function DashboardPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6 gap-6">
-        <div className="text-center">
-          <span className="text-6xl">🏋️</span>
-          <h1 className="text-3xl font-bold text-white mt-4">Workout Tracker</h1>
-          <p className="text-zinc-400 mt-2">Antrenmanlarını kayıt altına al</p>
+      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center px-6 gap-10">
+        <div className="text-center space-y-3">
+          <div className="h-16 w-16 rounded-2xl bg-accent-600 mx-auto flex items-center justify-center shadow-lg shadow-accent-950/40">
+            <Dumbbell size={28} className="text-white" strokeWidth={2.2} />
+          </div>
+          <h1 className="text-3xl font-semibold text-stone-50 tracking-tight">
+            Workout Tracker
+          </h1>
+          <p className="text-stone-400 text-[15px]">
+            Antrenmanlarını sade ve hızlı tut.
+          </p>
         </div>
-        <div className="flex flex-col gap-3 w-full max-w-sm">
+        <div className="flex flex-col gap-2.5 w-full max-w-sm">
           <Link
             href="/login"
-            className="flex items-center justify-center h-14 rounded-2xl bg-indigo-600 text-white font-semibold text-lg"
+            className="flex items-center justify-center h-13 rounded-xl bg-accent-600 hover:bg-accent-500 text-white font-medium text-[15px] transition-colors active:scale-[0.98]"
           >
             Giriş Yap
           </Link>
           <Link
             href="/signup"
-            className="flex items-center justify-center h-14 rounded-2xl bg-zinc-800 text-zinc-200 font-semibold text-lg"
+            className="flex items-center justify-center h-13 rounded-xl bg-stone-900 border border-stone-800 hover:border-stone-700 text-stone-100 font-medium text-[15px] transition-colors active:scale-[0.98]"
           >
-            Kayıt Ol
+            Hesap Oluştur
           </Link>
         </div>
       </div>
@@ -66,53 +72,66 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 pb-28">
+    <div className="min-h-screen bg-stone-950 pb-32">
       {/* Header */}
-      <div className="px-4 pt-12 pb-6">
-        <p className="text-zinc-400 text-sm">Merhaba 👋</p>
-        <h1 className="text-white text-2xl font-bold mt-0.5">Bugün ne çalışıyoruz?</h1>
+      <div className="px-5 pt-14 pb-7">
+        <p className="text-stone-500 text-[13px] font-medium">Merhaba 👋</p>
+        <h1 className="text-stone-50 text-[26px] font-semibold mt-1 tracking-tight leading-tight">
+          Bugün ne çalışıyoruz?
+        </h1>
       </div>
 
       {/* Haftalık özet */}
-      <div className="px-4 mb-4">
-        <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-4">
-          <div className="flex items-center gap-2 text-zinc-400 mb-3">
-            <TrendingUp size={16} />
-            <span className="text-sm font-medium">Bu Hafta</span>
+      <div className="px-5 mb-4">
+        <div className="bg-stone-900/60 rounded-2xl border border-stone-800/80 p-5">
+          <div className="flex items-center gap-2 text-stone-400 mb-4">
+            <TrendingUp size={14} strokeWidth={2.2} />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">
+              Bu Hafta
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-5">
             <div>
-              <p className="text-2xl font-bold text-white">{weekWorkoutIds.size}</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Antrenman</p>
+              <p className="text-[28px] font-semibold text-stone-50 tnum tracking-tight leading-none">
+                {weekWorkoutIds.size}
+              </p>
+              <p className="text-[12px] text-stone-500 mt-1.5">Antrenman</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-white">
-                {weekVolume > 0 ? `${(weekVolume / 1000).toFixed(1)}t` : '0'}
+              <p className="text-[28px] font-semibold text-stone-50 tnum tracking-tight leading-none">
+                {weekVolume > 0 ? `${(weekVolume / 1000).toFixed(1)}` : '0'}
+                <span className="text-stone-500 text-base font-normal ml-1">ton</span>
               </p>
-              <p className="text-xs text-zinc-500 mt-0.5">Toplam Hacim</p>
+              <p className="text-[12px] text-stone-500 mt-1.5">Toplam Hacim</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Hızlı başlat */}
-      <div className="px-4 mb-6">
+      <div className="px-5 mb-8">
         <Link
           href="/workout/active"
-          className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-indigo-600 text-white font-bold text-xl hover:bg-indigo-500 active:bg-indigo-700 transition-all active:scale-[0.98]"
+          prefetch
+          className="group flex items-center justify-center gap-3 h-16 rounded-2xl bg-accent-600 hover:bg-accent-500 active:bg-accent-700 text-white font-semibold text-lg transition-all active:scale-[0.99] shadow-lg shadow-accent-950/30"
         >
-          <Play size={24} fill="white" />
+          <Play size={22} strokeWidth={2.5} fill="white" />
           Antrenman Başlat
         </Link>
       </div>
 
       {/* Son antrenmanlar */}
-      {recentWorkouts && recentWorkouts.length > 0 && (
-        <div className="px-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-white font-semibold">Son Antrenmanlar</h2>
-            <Link href="/history" className="text-indigo-400 text-sm">
-              Tümü
+      {recentWorkouts && recentWorkouts.length > 0 ? (
+        <div className="px-5">
+          <div className="flex items-center justify-between mb-3 px-1">
+            <h2 className="text-stone-200 font-semibold text-[15px] tracking-tight">
+              Son Antrenmanlar
+            </h2>
+            <Link
+              href="/history"
+              className="text-accent-400 hover:text-accent-300 text-[13px] font-medium transition-colors"
+            >
+              Tümü →
             </Link>
           </div>
           <div className="space-y-2">
@@ -120,20 +139,39 @@ export default async function DashboardPage() {
               <Link
                 key={workout.id}
                 href={`/workout/${workout.id}`}
-                className="flex items-center gap-3 bg-zinc-900 rounded-xl border border-zinc-800 px-4 py-3 hover:border-zinc-600 transition-all"
+                className="group flex items-center gap-3 bg-stone-900/60 rounded-xl border border-stone-800/80 px-4 py-3.5 hover:border-stone-700 hover:bg-stone-900 transition-all active:scale-[0.99]"
               >
+                <div className="h-9 w-9 rounded-lg bg-stone-800 flex items-center justify-center shrink-0">
+                  <Calendar size={15} className="text-stone-400" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium">{workout.name ?? 'Antrenman'}</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    {formatDate(workout.started_at)} · {formatDuration(workout.started_at, workout.finished_at)}
+                  <p className="text-stone-100 font-medium text-[14px] truncate">
+                    {workout.name ?? 'Antrenman'}
+                  </p>
+                  <p className="text-[11px] text-stone-500 mt-0.5">
+                    {formatDate(workout.started_at)} ·{' '}
+                    <span className="tnum">
+                      {formatDuration(workout.started_at, workout.finished_at)}
+                    </span>
                   </p>
                 </div>
+                <ChevronRight
+                  size={16}
+                  className="text-stone-600 group-hover:text-stone-400 transition-colors shrink-0"
+                />
               </Link>
             ))}
           </div>
         </div>
+      ) : (
+        <div className="px-5">
+          <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-stone-800">
+            <p className="text-stone-500 text-sm">
+              Henüz antrenman yok. İlkini başlatmaya ne dersin?
+            </p>
+          </div>
+        </div>
       )}
-
     </div>
   )
 }

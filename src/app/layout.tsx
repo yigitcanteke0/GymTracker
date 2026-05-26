@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: "#0c0a09",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -25,7 +25,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr" className={`${geist.variable} h-full`}>
-      <body className="min-h-full bg-zinc-950 antialiased">
+      <body className="min-h-full bg-stone-950 text-stone-100 antialiased">
         {children}
         <FloatingNav />
       </body>

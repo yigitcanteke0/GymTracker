@@ -40,9 +40,9 @@ export function WorkoutExportButton({ workoutId, workoutName }: ExportButtonProp
   return (
     <button
       onClick={handleExport}
-      className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-all"
+      className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
     >
-      <Download size={16} />
+      <Download size={14} strokeWidth={2.2} />
     </button>
   )
 }

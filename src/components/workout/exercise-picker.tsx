@@ -15,7 +15,7 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([])
-  const [recentIds, setRecentIds] = useState<string[]>([]) // sıralı, en son kullanılan ilk
+  const [recentIds, setRecentIds] = useState<string[]>([])
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -40,7 +40,6 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
     setExercises(ex ?? [])
     setMuscleGroups(mg ?? [])
 
-    // Sıralı, tekrarsız ID listesi — en son kullanılan ilk
     const seen = new Set<string>()
     const recentOrdered: string[] = []
     for (const r of recent ?? []) {
@@ -68,7 +67,6 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
     [exercises, query, selectedGroup]
   )
 
-  // Filtreden geçen son kullanılanları, sıralı bir şekilde topla
   const recentExercises = useMemo(() => {
     const map = new Map(filtered.map(e => [e.id, e]))
     return recentIds
@@ -82,39 +80,41 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
   const rest = filtered.filter(e => !recentSet.has(e.id) && !favoriteSet.has(e.id))
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-zinc-950">
+    <div className="fixed inset-0 z-50 flex flex-col bg-stone-950 animate-fade-up">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
-        <div className="flex-1 flex items-center gap-2 bg-zinc-800 rounded-xl px-3 h-11">
-          <Search size={18} className="text-zinc-400 shrink-0" />
+      <div className="flex items-center gap-2.5 p-4 border-b border-stone-900">
+        <div className="flex-1 flex items-center gap-2.5 bg-stone-900 rounded-xl px-3.5 h-11 border border-stone-800/80">
+          <Search size={16} className="text-stone-500 shrink-0" />
           <input
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Egzersiz ara..."
-            className="flex-1 bg-transparent text-white placeholder-zinc-500 outline-none text-base"
+            placeholder="Egzersiz ara"
+            className="flex-1 bg-transparent text-stone-100 placeholder-stone-600 outline-none text-[15px]"
           />
           {query && (
-            <button onClick={() => setQuery('')}>
-              <X size={16} className="text-zinc-400" />
+            <button onClick={() => setQuery('')} className="text-stone-500 hover:text-stone-300">
+              <X size={15} />
             </button>
           )}
         </div>
         <button
           onClick={onClose}
-          className="h-11 w-11 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300"
+          className="h-11 w-11 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
       </div>
 
       {/* Muscle group filter */}
-      <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-none border-b border-zinc-800">
+      <div className="flex gap-1.5 px-4 py-3 overflow-x-auto scrollbar-none border-b border-stone-900">
         <button
           onClick={() => setSelectedGroup(null)}
           className={cn(
-            'shrink-0 px-3 h-8 rounded-full text-sm font-medium transition-all',
-            !selectedGroup ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-300'
+            'shrink-0 px-3.5 h-8 rounded-full text-[13px] font-medium transition-all',
+            !selectedGroup
+              ? 'bg-stone-100 text-stone-900'
+              : 'bg-stone-900 text-stone-400 border border-stone-800/80 hover:text-stone-200'
           )}
         >
           Tümü
@@ -124,8 +124,10 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
             key={mg.id}
             onClick={() => setSelectedGroup(mg.id === selectedGroup ? null : mg.id)}
             className={cn(
-              'shrink-0 flex items-center gap-1.5 px-3 h-8 rounded-full text-sm font-medium transition-all',
-              selectedGroup === mg.id ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-300'
+              'shrink-0 flex items-center gap-1.5 px-3.5 h-8 rounded-full text-[13px] font-medium transition-all',
+              selectedGroup === mg.id
+                ? 'bg-stone-100 text-stone-900'
+                : 'bg-stone-900 text-stone-400 border border-stone-800/80 hover:text-stone-200'
             )}
           >
             <span>{mg.icon}</span>
@@ -135,18 +137,25 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
       </div>
 
       {/* Grid list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-5">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-zinc-500">Yükleniyor…</div>
+          <div className="grid grid-cols-2 gap-2">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-[88px] rounded-xl bg-stone-900/60 animate-pulse" />
+            ))}
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="flex items-center justify-center h-40 text-zinc-500">Egzersiz bulunamadı</div>
+          <div className="flex flex-col items-center justify-center h-60 text-stone-500 gap-2">
+            <Search size={28} className="text-stone-700" />
+            <p className="text-sm">Egzersiz bulunamadı</p>
+          </div>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-6">
             {recentExercises.length > 0 && (
-              <Section icon={<Clock size={12} />} label="Son Kullanılan" exercises={recentExercises} onSelect={onSelect} />
+              <Section icon={<Clock size={11} />} label="Son Kullanılan" exercises={recentExercises} onSelect={onSelect} />
             )}
             {favorites.length > 0 && (
-              <Section icon={<Star size={12} />} label="Favoriler" exercises={favorites} onSelect={onSelect} />
+              <Section icon={<Star size={11} />} label="Favoriler" exercises={favorites} onSelect={onSelect} />
             )}
             {rest.length > 0 && (
               <Section label="Tüm Egzersizler" exercises={rest} onSelect={onSelect} />
@@ -171,7 +180,7 @@ function Section({
 }) {
   return (
     <div>
-      <p className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wider px-1 pb-2">
+      <p className="flex items-center gap-1.5 text-[10px] font-semibold text-stone-500 uppercase tracking-[0.1em] px-1 pb-2.5">
         {icon}
         {label}
       </p>
@@ -195,18 +204,22 @@ function ExerciseTile({
   return (
     <button
       onClick={() => onSelect(exercise)}
-      className="relative flex flex-col items-start gap-1.5 p-3 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-600 active:scale-[0.97] transition-all text-left min-h-[88px]"
+      className="relative flex flex-col items-start gap-2 p-3.5 rounded-xl bg-stone-900/60 border border-stone-800/80 hover:border-stone-700 hover:bg-stone-900 active:scale-[0.98] transition-all text-left min-h-[96px]"
     >
       {exercise.is_favorite && (
-        <Star size={12} className="absolute top-2 right-2 text-amber-400" fill="currentColor" />
+        <Star
+          size={11}
+          className="absolute top-2.5 right-2.5 text-amber-400"
+          fill="currentColor"
+        />
       )}
       <span className="text-2xl">{exercise.icon}</span>
-      <span className="text-white text-sm font-medium leading-tight line-clamp-2">
+      <span className="text-stone-50 text-[13px] font-medium leading-tight line-clamp-2">
         {exercise.name}
       </span>
       {mg && (
-        <span className="text-[10px] text-zinc-500 uppercase tracking-wider mt-auto">
-          {mg.name} · {exercise.equipment}
+        <span className="text-[10px] text-stone-500 mt-auto leading-tight">
+          {mg.name} · <span className="text-stone-600">{exercise.equipment}</span>
         </span>
       )}
     </button>

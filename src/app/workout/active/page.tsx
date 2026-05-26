@@ -129,37 +129,40 @@ export default function ActiveWorkoutPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950">
+    <div className="flex flex-col min-h-screen bg-stone-950">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+      <div className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-md border-b border-stone-900">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => router.push('/')}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-accent-500 uppercase tracking-[0.1em]">
+              Aktif Antrenman
+            </p>
             <input
               value={workoutName}
               onChange={e => setWorkoutName(e.target.value)}
-              placeholder="Antrenman adı (opsiyonel)"
-              className="w-full bg-transparent text-white font-semibold text-base placeholder-zinc-600 outline-none"
+              placeholder="Antrenman adı"
+              className="w-full bg-transparent text-stone-50 font-semibold text-[15px] placeholder-stone-600 outline-none"
             />
           </div>
           <WorkoutTimer startedAt={startedAt.current} />
         </div>
         {totalSets > 0 && (
-          <div className="px-4 pb-2">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+          <div className="px-4 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 h-1 bg-stone-900 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-500"
                   style={{ width: `${(completedSets / totalSets) * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-zinc-500 tabular-nums">
-                {completedSets}/{totalSets}
+              <span className="text-[11px] text-stone-500 tnum font-medium">
+                {completedSets}/{totalSets} set
               </span>
             </div>
           </div>
@@ -169,11 +172,15 @@ export default function ActiveWorkoutPage() {
       {/* Content */}
       <div className="flex-1 px-4 py-4 space-y-3">
         {exercises.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-            <span className="text-6xl">🏋️</span>
-            <div>
-              <p className="text-white font-semibold text-lg">Antrenman başladı!</p>
-              <p className="text-zinc-500 text-sm mt-1">İlk egzersizini ekle</p>
+          <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+            <div className="h-20 w-20 rounded-full bg-stone-900 border border-stone-800 flex items-center justify-center">
+              <span className="text-4xl">🏋️</span>
+            </div>
+            <div className="space-y-1">
+              <p className="text-stone-100 font-semibold text-lg tracking-tight">
+                Antrenman başladı
+              </p>
+              <p className="text-stone-500 text-sm">İlk egzersizini ekle</p>
             </div>
           </div>
         ) : (
@@ -189,14 +196,14 @@ export default function ActiveWorkoutPage() {
       </div>
 
       {/* Sticky footer */}
-      <div className="sticky bottom-0 bg-zinc-950/95 backdrop-blur border-t border-zinc-800 px-4 py-4 space-y-2.5">
+      <div className="sticky bottom-0 bg-stone-950/90 backdrop-blur-md border-t border-stone-900 px-4 py-3.5 space-y-2.5">
         <Button
           variant="secondary"
           size="lg"
           className="w-full"
           onClick={() => setShowPicker(true)}
         >
-          <Plus size={20} />
+          <Plus size={18} strokeWidth={2.5} />
           Egzersiz Ekle
         </Button>
 
@@ -206,9 +213,9 @@ export default function ActiveWorkoutPage() {
             duration={1200}
             disabled={saving}
             holdingLabel="Bitiriliyor"
-            className="w-full h-14 rounded-xl border-2 border-emerald-700 bg-emerald-950/30 text-emerald-300 font-semibold text-base"
+            className="w-full h-[52px] rounded-xl border border-emerald-800/60 bg-emerald-950/30 text-emerald-300 font-medium text-[15px]"
           >
-            <CheckCircle2 size={20} />
+            <CheckCircle2 size={18} strokeWidth={2.2} />
             {saving ? 'Kaydediliyor…' : 'Antrenmanı Bitir — Basılı Tut'}
           </LongPressButton>
         )}

@@ -2,21 +2,83 @@
 
 @theme inline {
   --font-sans: var(--font-geist);
+
+  /* Claude-inspired warm coral accent */
+  --color-accent-50:  #fdf5ef;
+  --color-accent-100: #fae5d2;
+  --color-accent-200: #f5c8a3;
+  --color-accent-300: #eea66f;
+  --color-accent-400: #e58446;
+  --color-accent-500: #d36a32;
+  --color-accent-600: #c1683f;
+  --color-accent-700: #9a4f2c;
+  --color-accent-800: #7a3f24;
+  --color-accent-900: #5c301c;
+  --color-accent-950: #321609;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Prevent iOS bounce scroll on fixed elements */
-html, body {
-  overscroll-behavior: none;
+html {
+  color-scheme: dark;
 }
 
+html, body {
+  overscroll-behavior: none;
+  background-color: #0c0a09; /* stone-950 */
+  color: #f5f5f4; /* stone-100 */
+  font-feature-settings: "cv11", "ss01", "ss03";
+}
+
+/* Refined selection */
+::selection {
+  background-color: rgba(193, 104, 63, 0.35);
+  color: #fff;
+}
+
+/* Hide native scrollbars on horizontal scrollers */
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
 .scrollbar-none {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Soft scrollbar elsewhere */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #292524; /* stone-800 */
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #44403c; /* stone-700 */
+}
+
+/* Disable input zoom on iOS */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Subtle entrance animation utility */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 200ms ease-out;
+}
+
+/* Tabular numerals for stats */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }

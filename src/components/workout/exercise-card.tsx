@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { ChevronDown, ChevronUp, Plus, GripVertical } from 'lucide-react'
-import { ActiveExercise, ActiveSet, SetType } from '@/types'
+import { ChevronDown, ChevronUp, Plus, GripVertical, Check } from 'lucide-react'
+import { ActiveExercise, ActiveSet, SetType, MuscleGroup } from '@/types'
 import { SetRow } from './set-row'
 import { Stepper } from '@/components/ui/stepper'
 import { RirSelector } from '@/components/ui/rir-selector'
@@ -69,7 +69,6 @@ export function ExerciseCard({
       const set = exerciseGroup.sets[idx]
       updateSet(idx, { completed: !set.completed })
       if (!set.completed) {
-        // Tamamlandı — bir sonraki tamamlanmamış seti aktif et
         const nextIdx = exerciseGroup.sets.findIndex(
           (s, i) => i > idx && !s.completed
         )
@@ -82,39 +81,58 @@ export function ExerciseCard({
   const activeSet = activeSetIndex !== null ? exerciseGroup.sets[activeSetIndex] : null
   const completedCount = exerciseGroup.sets.filter(s => s.completed).length
   const totalCount = exerciseGroup.sets.length
+  const mg = exerciseGroup.exercise.muscle_group as MuscleGroup | undefined
 
   return (
-    <div className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
+    <div className="bg-stone-900/60 rounded-2xl border border-stone-800/80 overflow-hidden shadow-lg shadow-stone-950/20">
       {/* Card header */}
-      <div className="flex items-center gap-3 px-4 py-3">
-        <GripVertical size={18} className="text-zinc-600 shrink-0" />
-        <span className="text-2xl">{exerciseGroup.exercise.icon}</span>
+      <div className="flex items-center gap-2.5 px-3.5 py-3">
+        <GripVertical size={16} className="text-stone-600 shrink-0" />
+        <span className="text-xl shrink-0">{exerciseGroup.exercise.icon}</span>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-semibold truncate">{exerciseGroup.exercise.name}</p>
-          <p className="text-xs text-zinc-500">
-            {completedCount}/{totalCount} set
-            {exerciseGroup.exercise.muscle_group && (
-              <> · {(exerciseGroup.exercise.muscle_group as { icon?: string; name?: string })?.name}</>
+          <p className="text-stone-50 font-medium text-[15px] truncate leading-tight">
+            {exerciseGroup.exercise.name}
+          </p>
+          <p className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-1.5">
+            <span className="tnum">
+              {completedCount}/{totalCount} set
+            </span>
+            {mg && (
+              <>
+                <span className="text-stone-700">·</span>
+                <span>{mg.name}</span>
+              </>
             )}
           </p>
         </div>
+        {completedCount === totalCount && totalCount > 0 && (
+          <div className="h-6 w-6 rounded-full bg-emerald-600/20 flex items-center justify-center">
+            <Check size={12} className="text-emerald-400" strokeWidth={3} />
+          </div>
+        )}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="h-8 w-8 flex items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-800"
+          className="h-8 w-8 flex items-center justify-center rounded-lg text-stone-500 hover:bg-stone-800 hover:text-stone-300 transition-colors"
         >
-          {collapsed ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
+          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
         </button>
       </div>
 
       {!collapsed && (
         <>
           {/* Set listesi */}
-          <div className="px-3 space-y-1.5 pb-3">
+          <div className="px-2.5 space-y-1.5 pb-3">
             {/* Kolon başlıkları */}
-            <div className="flex items-center gap-2 px-3 py-1">
-              <div className="w-8 text-center text-xs text-zinc-600">Set</div>
-              <div className="w-20 text-center text-xs text-zinc-600">Önceki</div>
-              <div className="flex-1 text-center text-xs text-zinc-600">Ağırlık × Tekrar</div>
+            <div className="flex items-center gap-2 px-3 pb-0.5">
+              <div className="w-7 text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
+                Set
+              </div>
+              <div className="w-[72px] text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
+                Önceki
+              </div>
+              <div className="flex-1 text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
+                kg × tekrar
+              </div>
               <div className="w-8" />
               <div className="w-10" />
             </div>
@@ -133,18 +151,18 @@ export function ExerciseCard({
 
             <button
               onClick={addSet}
-              className="w-full flex items-center justify-center gap-2 h-10 rounded-xl border border-dashed border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300 transition-all text-sm"
+              className="w-full flex items-center justify-center gap-1.5 h-10 mt-1 rounded-xl border border-dashed border-stone-800 text-stone-500 hover:border-stone-600 hover:text-stone-300 hover:bg-stone-900/40 transition-all text-[13px] font-medium"
             >
-              <Plus size={16} />
+              <Plus size={14} />
               Set Ekle
             </button>
           </div>
 
           {/* Aktif set input paneli */}
           {activeSet && !activeSet.completed && (
-            <div className="border-t border-zinc-800 bg-zinc-950/50 px-4 py-4 space-y-4">
-              <p className="text-xs text-zinc-500 font-medium uppercase tracking-wider">
-                Set {activeSetIndex! + 1} — Değerleri gir
+            <div className="border-t border-stone-800/70 bg-stone-950/40 px-4 py-4 space-y-4 animate-fade-up">
+              <p className="text-[11px] text-stone-500 font-medium uppercase tracking-[0.08em] text-center">
+                Set {activeSetIndex! + 1} · Değerleri Gir
               </p>
 
               <Stepper
@@ -155,7 +173,7 @@ export function ExerciseCard({
                 min={0}
                 max={500}
                 step={2.5}
-                quickSteps={[5, 2.5]}
+                quickSteps={[5]}
               />
 
               <Stepper
@@ -178,16 +196,17 @@ export function ExerciseCard({
                 className="w-full"
                 onClick={() => toggleComplete(activeSetIndex!)}
               >
-                ✓ Set Tamamla
+                <Check size={18} strokeWidth={2.5} />
+                Set Tamamla
               </Button>
             </div>
           )}
 
           {/* Egzersizi kaldır */}
-          <div className="border-t border-zinc-800 px-4 py-2 flex justify-end">
+          <div className="border-t border-stone-800/70 px-4 py-2 flex justify-end">
             <button
               onClick={onRemove}
-              className="text-xs text-zinc-600 hover:text-red-400 transition-colors"
+              className="text-[11px] text-stone-600 hover:text-red-400 transition-colors font-medium"
             >
               Egzersizi kaldır
             </button>

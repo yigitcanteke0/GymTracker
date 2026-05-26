@@ -58,26 +58,54 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-end">
-      <div className="w-full bg-zinc-900 rounded-t-3xl border-t border-zinc-700 p-5 space-y-5 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-end animate-fade-up">
+      <div className="w-full bg-stone-950 rounded-t-3xl border-t border-stone-800 p-5 pt-4 space-y-5 max-h-[92vh] overflow-y-auto">
+        {/* Drag handle */}
+        <div className="flex justify-center -mt-1 mb-2">
+          <div className="h-1 w-10 rounded-full bg-stone-700" />
+        </div>
+
         <div className="flex items-center justify-between">
-          <h2 className="text-white font-bold text-lg">Egzersiz Ekle</h2>
-          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-lg bg-zinc-800 text-zinc-400">
-            <X size={18} />
+          <h2 className="text-stone-50 font-semibold text-[17px] tracking-tight">
+            Yeni Egzersiz
+          </h2>
+          <button
+            onClick={onClose}
+            className="h-8 w-8 flex items-center justify-center rounded-lg bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+          >
+            <X size={16} />
           </button>
         </div>
 
-        {/* İkon seçici */}
-        <div>
-          <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wider">İkon</p>
-          <div className="flex flex-wrap gap-2">
+        {/* Name */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+            Egzersiz Adı
+          </label>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="ör. Bulgarian Split Squat"
+            className="w-full bg-stone-900 text-stone-100 rounded-xl px-4 h-12 placeholder-stone-600 outline-none border border-stone-800/80 focus:border-accent-600/60 transition-colors"
+          />
+        </div>
+
+        {/* Icon */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+            İkon
+          </label>
+          <div className="flex flex-wrap gap-1.5">
             {ICONS.map(i => (
               <button
                 key={i}
                 onClick={() => setIcon(i)}
                 className={cn(
-                  'h-10 w-10 rounded-xl text-xl flex items-center justify-center transition-all',
-                  icon === i ? 'bg-indigo-600 ring-2 ring-indigo-400' : 'bg-zinc-800'
+                  'h-10 w-10 rounded-lg text-xl flex items-center justify-center transition-all active:scale-90',
+                  icon === i
+                    ? 'bg-accent-600/20 ring-1 ring-accent-500'
+                    : 'bg-stone-900 border border-stone-800/80 hover:bg-stone-800'
                 )}
               >
                 {i}
@@ -86,29 +114,21 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
           </div>
         </div>
 
-        {/* İsim */}
-        <div>
-          <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wider">Egzersiz Adı</p>
-          <input
-            autoFocus
-            value={name}
-            onChange={e => setName(e.target.value)}
-            placeholder="ör. Bulgarian Split Squat"
-            className="w-full bg-zinc-800 text-white rounded-xl px-4 h-12 placeholder-zinc-500 outline-none border border-zinc-700 focus:border-indigo-500"
-          />
-        </div>
-
-        {/* Kas grubu */}
-        <div>
-          <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wider">Kas Grubu</p>
-          <div className="flex flex-wrap gap-2">
+        {/* Muscle group */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+            Kas Grubu
+          </label>
+          <div className="flex flex-wrap gap-1.5">
             {muscleGroups.map(mg => (
               <button
                 key={mg.id}
                 onClick={() => setMuscleGroupId(mg.id === muscleGroupId ? '' : mg.id)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 h-9 rounded-xl text-sm font-medium transition-all',
-                  muscleGroupId === mg.id ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                  'flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-medium transition-all active:scale-[0.97]',
+                  muscleGroupId === mg.id
+                    ? 'bg-stone-100 text-stone-900'
+                    : 'bg-stone-900 text-stone-300 border border-stone-800/80 hover:bg-stone-800'
                 )}
               >
                 {mg.icon} {mg.name}
@@ -117,17 +137,21 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
           </div>
         </div>
 
-        {/* Ekipman */}
-        <div>
-          <p className="text-xs text-zinc-400 mb-2 uppercase tracking-wider">Ekipman</p>
-          <div className="flex flex-wrap gap-2">
+        {/* Equipment */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+            Ekipman
+          </label>
+          <div className="flex flex-wrap gap-1.5">
             {EQUIPMENT.map(eq => (
               <button
                 key={eq.value}
                 onClick={() => setEquipment(eq.value)}
                 className={cn(
-                  'px-3 h-9 rounded-xl text-sm font-medium transition-all',
-                  equipment === eq.value ? 'bg-indigo-600 text-white' : 'bg-zinc-800 text-zinc-300'
+                  'px-3 h-9 rounded-lg text-[13px] font-medium transition-all active:scale-[0.97]',
+                  equipment === eq.value
+                    ? 'bg-stone-100 text-stone-900'
+                    : 'bg-stone-900 text-stone-300 border border-stone-800/80 hover:bg-stone-800'
                 )}
               >
                 {eq.label}
@@ -136,7 +160,11 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
           </div>
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && (
+          <p className="text-red-400 text-[13px] px-1 py-2 rounded-lg bg-red-950/30 border border-red-900/40">
+            {error}
+          </p>
+        )}
 
         <Button
           variant="primary"

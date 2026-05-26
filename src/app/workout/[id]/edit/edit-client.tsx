@@ -127,24 +127,24 @@ export function EditWorkoutClient({
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950">
-      <div className="sticky top-0 z-10 bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+    <div className="flex flex-col min-h-screen bg-stone-950">
+      <div className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-md border-b border-stone-900">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             onClick={() => router.back()}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-zinc-800 text-zinc-300"
+            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
-          <div className="flex-1">
-            <p className="text-xs text-amber-400 font-medium uppercase tracking-wider">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-[0.1em]">
               Düzenleme
             </p>
             <input
               value={workoutName}
               onChange={e => setWorkoutName(e.target.value)}
               placeholder="Antrenman adı"
-              className="w-full bg-transparent text-white font-semibold text-base placeholder-zinc-600 outline-none"
+              className="w-full bg-transparent text-stone-50 font-semibold text-[15px] placeholder-stone-600 outline-none"
             />
           </div>
         </div>
@@ -153,8 +153,10 @@ export function EditWorkoutClient({
       <div className="flex-1 px-4 py-4 space-y-3 pb-32">
         {exercises.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <span className="text-5xl">📝</span>
-            <p className="text-zinc-500">Henüz egzersiz yok</p>
+            <div className="h-16 w-16 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center">
+              <span className="text-3xl">📝</span>
+            </div>
+            <p className="text-stone-500 text-sm">Henüz egzersiz yok</p>
           </div>
         ) : (
           exercises.map((eg, idx) => (
@@ -168,14 +170,14 @@ export function EditWorkoutClient({
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-zinc-950/95 backdrop-blur border-t border-zinc-800 px-4 py-4 space-y-2.5">
+      <div className="sticky bottom-0 bg-stone-950/90 backdrop-blur-md border-t border-stone-900 px-4 py-3.5 space-y-2.5">
         <Button
           variant="secondary"
           size="lg"
           className="w-full"
           onClick={() => setShowPicker(true)}
         >
-          <Plus size={20} />
+          <Plus size={18} strokeWidth={2.5} />
           Egzersiz Ekle
         </Button>
 
@@ -186,7 +188,7 @@ export function EditWorkoutClient({
           onClick={handleSave}
           disabled={saving || deleting}
         >
-          <Save size={20} />
+          <Save size={18} strokeWidth={2.2} />
           {saving ? 'Kaydediliyor…' : 'Değişiklikleri Kaydet'}
         </Button>
 
@@ -195,9 +197,10 @@ export function EditWorkoutClient({
           duration={1500}
           disabled={saving || deleting}
           holdingLabel="Siliniyor"
-          className="w-full h-12 rounded-xl bg-red-950/40 border border-red-900 text-red-400 font-medium text-sm"
+          fillClassName="bg-red-500/30"
+          className="w-full h-11 rounded-xl bg-stone-900 border border-stone-800/80 text-red-400 font-medium text-[13px] hover:bg-red-950/30 hover:border-red-900/60 transition-colors"
         >
-          <Trash2 size={16} />
+          <Trash2 size={13} strokeWidth={2.2} />
           Antrenmanı Sil — Basılı Tut
         </LongPressButton>
       </div>

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { Dumbbell } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 
@@ -29,48 +30,65 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm space-y-8">
-        <div className="text-center">
-          <span className="text-5xl">🏋️</span>
-          <h1 className="text-2xl font-bold text-white mt-4">Giriş Yap</h1>
+    <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-sm space-y-9">
+        <div className="text-center space-y-3">
+          <div className="h-14 w-14 rounded-2xl bg-accent-600 mx-auto flex items-center justify-center shadow-lg shadow-accent-950/40">
+            <Dumbbell size={24} className="text-white" strokeWidth={2.2} />
+          </div>
+          <div>
+            <h1 className="text-stone-50 font-semibold text-[22px] tracking-tight">
+              Tekrar hoş geldin
+            </h1>
+            <p className="text-stone-500 text-[14px] mt-1">
+              Hesabınla giriş yap
+            </p>
+          </div>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-xs text-zinc-400 uppercase tracking-wider">E-posta</label>
+        <form onSubmit={handleLogin} className="space-y-3.5">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+              E-posta
+            </label>
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
-              className="w-full h-12 bg-zinc-800 text-white rounded-xl px-4 border border-zinc-700 focus:border-indigo-500 outline-none placeholder-zinc-500"
+              className="w-full h-12 bg-stone-900 text-stone-100 rounded-xl px-4 border border-stone-800/80 focus:border-accent-600/60 outline-none placeholder-stone-600 transition-colors"
               placeholder="sen@email.com"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs text-zinc-400 uppercase tracking-wider">Şifre</label>
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
+              Şifre
+            </label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
-              className="w-full h-12 bg-zinc-800 text-white rounded-xl px-4 border border-zinc-700 focus:border-indigo-500 outline-none placeholder-zinc-500"
+              className="w-full h-12 bg-stone-900 text-stone-100 rounded-xl px-4 border border-stone-800/80 focus:border-accent-600/60 outline-none placeholder-stone-600 transition-colors"
               placeholder="••••••••"
             />
           </div>
 
-          {error && <p className="text-red-400 text-sm">{error}</p>}
+          {error && (
+            <p className="text-red-400 text-[13px] px-3 py-2 rounded-lg bg-red-950/30 border border-red-900/40">
+              {error}
+            </p>
+          )}
 
           <Button type="submit" size="lg" className="w-full" disabled={loading}>
             {loading ? 'Giriş yapılıyor…' : 'Giriş Yap'}
           </Button>
         </form>
 
-        <p className="text-center text-zinc-500 text-sm">
+        <p className="text-center text-stone-500 text-[13px]">
           Hesabın yok mu?{' '}
-          <Link href="/signup" className="text-indigo-400 font-medium">
-            Kayıt Ol
+          <Link href="/signup" className="text-accent-400 hover:text-accent-300 font-medium transition-colors">
+            Hesap oluştur
           </Link>
         </p>
       </div>

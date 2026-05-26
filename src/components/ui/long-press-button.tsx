@@ -10,6 +10,7 @@ interface LongPressButtonProps {
   children: React.ReactNode
   holdingLabel?: string
   disabled?: boolean
+  fillClassName?: string
 }
 
 export function LongPressButton({
@@ -19,6 +20,7 @@ export function LongPressButton({
   children,
   holdingLabel = 'Bitirmek için basılı tut',
   disabled = false,
+  fillClassName = 'bg-emerald-500/30',
 }: LongPressButtonProps) {
   const [progress, setProgress] = useState(0)
   const [holding, setHolding] = useState(false)
@@ -47,7 +49,6 @@ export function LongPressButton({
       if (pct >= 100) {
         if (!completedRef.current) {
           completedRef.current = true
-          // Haptic
           if (typeof window !== 'undefined' && 'vibrate' in navigator) {
             navigator.vibrate?.(50)
           }
@@ -71,17 +72,16 @@ export function LongPressButton({
       onPointerCancel={cancel}
       disabled={disabled}
       className={cn(
-        'relative overflow-hidden select-none transition-all active:scale-[0.98] disabled:opacity-40',
+        'relative overflow-hidden select-none transition-all active:scale-[0.985] disabled:opacity-40',
         className
       )}
     >
-      {/* Fill progress */}
       <div
-        className="absolute inset-y-0 left-0 bg-emerald-500/40 transition-none"
+        className={cn('absolute inset-y-0 left-0 transition-none', fillClassName)}
         style={{ width: `${progress}%` }}
       />
       <span className="relative z-10 flex items-center justify-center gap-2">
-        {holding ? `${holdingLabel} (${Math.round(progress)}%)` : children}
+        {holding ? `${holdingLabel} · %${Math.round(progress)}` : children}
       </span>
     </button>
   )
