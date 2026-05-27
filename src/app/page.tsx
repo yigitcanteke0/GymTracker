@@ -9,6 +9,7 @@ import { Glyph, GlyphTile } from '@/components/glyphs/glyph'
 import { workoutMuscleGlyph } from '@/lib/glyph-map'
 import { getOrAutoCloseActiveWorkout } from '@/lib/active-workout'
 import { ActiveWorkoutBanner } from '@/components/workout/active-workout-banner'
+import { PrefetchLink } from '@/components/ui/prefetch-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,50 +24,47 @@ export default async function DashboardPage() {
     return <UnauthedSplash />
   }
 
-  // Aktif (devam eden) antrenman + 2 saatlik auto-close
-  const activeWorkout = await getOrAutoCloseActiveWorkout(supabase, user.id)
-  let activeSetCount = 0
-  if (activeWorkout) {
-    const { count } = await supabase
+  // Tüm sorguları paralel başlat — geçiş süresini ~5x → ~2x'e indirir
+  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
+  const [activeWorkout, recentResult, weekSetsResult] = await Promise.all([
+    getOrAutoCloseActiveWorkout(supabase, user.id),
+    supabase
+      .from('workouts')
+      .select('*')
+      .not('finished_at', 'is', null)
+      .order('started_at', { ascending: false })
+      .limit(15),
+    supabase
       .from('workout_sets')
-      .select('id', { count: 'exact', head: true })
-      .eq('workout_id', activeWorkout.id)
-    activeSetCount = count ?? 0
-  }
+      .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
+      .gte('workout.started_at', sevenDaysAgo),
+  ])
 
-  // Recent (bitmiş, 0 setli olanları gizle)
-  const { data: recentRaw } = await supabase
-    .from('workouts')
-    .select('*')
-    .not('finished_at', 'is', null)
-    .order('started_at', { ascending: false })
-    .limit(15)
+  const recentRaw = recentResult.data
+  const weekSets = weekSetsResult.data
 
+  // Aktif set sayısı + recent set sayıları → tek istek olarak paralel batch
   const recentIds = recentRaw?.map(w => w.id) ?? []
-  const { data: recentSetCounts } = recentIds.length > 0
+  const idsToCount = activeWorkout
+    ? [activeWorkout.id, ...recentIds]
+    : recentIds
+
+  const { data: setRows } = idsToCount.length > 0
     ? await supabase
         .from('workout_sets')
         .select('workout_id')
-        .in('workout_id', recentIds)
+        .in('workout_id', idsToCount)
     : { data: null }
 
-  const recentCountMap = (recentSetCounts ?? []).reduce<Record<string, number>>(
-    (acc, s) => {
-      acc[s.workout_id] = (acc[s.workout_id] ?? 0) + 1
-      return acc
-    },
-    {}
-  )
-  const recentWorkouts = (recentRaw ?? [])
-    .filter(w => (recentCountMap[w.id] ?? 0) > 0)
-    .slice(0, 5)
+  const countMap = (setRows ?? []).reduce<Record<string, number>>((acc, s) => {
+    acc[s.workout_id] = (acc[s.workout_id] ?? 0) + 1
+    return acc
+  }, {})
 
-  // Hafta istatistikleri
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-  const { data: weekSets } = await supabase
-    .from('workout_sets')
-    .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
-    .gte('workout.started_at', sevenDaysAgo)
+  const activeSetCount = activeWorkout ? countMap[activeWorkout.id] ?? 0 : 0
+  const recentWorkouts = (recentRaw ?? [])
+    .filter(w => (countMap[w.id] ?? 0) > 0)
+    .slice(0, 5)
 
   const weekVolume = (weekSets ?? []).reduce(
     (acc, s) => acc + Number(s.weight_kg) * (s.reps ?? 0),
@@ -221,9 +219,13 @@ export default async function DashboardPage() {
         ) : (
           recentWorkouts.map(w => {
             const muscle = workoutMuscleGlyph(w.name)
-            const setCount = recentCountMap[w.id] ?? 0
+            const setCount = countMap[w.id] ?? 0
             return (
-              <Link key={w.id} href={`/workout/${w.id}`} className="block">
+              <PrefetchLink
+                key={w.id}
+                href={`/workout/${w.id}`}
+                className="block"
+              >
                 <Card
                   padding={12}
                   className="flex items-center gap-3 transition-transform active:scale-[0.99]"
@@ -241,7 +243,7 @@ export default async function DashboardPage() {
                   </div>
                   <ChevronRight size={14} className="text-fg-quaternary shrink-0" />
                 </Card>
-              </Link>
+              </PrefetchLink>
             )
           })
         )}

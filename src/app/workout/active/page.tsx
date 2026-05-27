@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Check, Pencil, Timer } from 'lucide-react'
+import { Plus, X, Check, Pencil, Timer, CloudOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type {
   ActiveExercise,
@@ -17,6 +17,13 @@ import {
   type PreviousSet,
 } from '@/lib/last-performance'
 import { getOrAutoCloseActiveWorkout } from '@/lib/active-workout'
+import {
+  saveSnapshot,
+  loadSnapshot,
+  clearSnapshot,
+} from '@/lib/active-workout-cache'
+import { withRetry, unwrap } from '@/lib/retry'
+import { useOnline } from '@/hooks/use-online'
 import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
 import { SetComposer } from '@/components/workout/set-composer'
@@ -27,7 +34,9 @@ import { LongPressButton } from '@/components/ui/long-press-button'
 export default function ActiveWorkoutPage() {
   const router = useRouter()
   const supabase = createClient()
+  const online = useOnline()
   const startedAt = useRef(new Date().toISOString())
+  const userIdRef = useRef<string | null>(null)
 
   const [bootstrapped, setBootstrapped] = useState(false)
   const [workoutId, setWorkoutId] = useState<string | null>(null)
@@ -44,7 +53,7 @@ export default function ActiveWorkoutPage() {
   const [restRemain, setRestRemain] = useState(0)
   const [editingName, setEditingName] = useState(false)
 
-  // ── Mount: resume or fresh ────────────────────────────────────────
+  // ── Mount: resume from DB, fall back to snapshot, then flush pending
   useEffect(() => {
     let mounted = true
     ;(async () => {
@@ -53,6 +62,7 @@ export default function ActiveWorkoutPage() {
         router.push('/login')
         return
       }
+      userIdRef.current = user.id
 
       const active = await getOrAutoCloseActiveWorkout(supabase, user.id)
       if (!mounted) return
@@ -65,7 +75,6 @@ export default function ActiveWorkoutPage() {
         setWorkoutName(active.name ?? '')
         startedAt.current = active.started_at
 
-        // Resume sets
         const { data: sets } = await supabase
           .from('workout_sets')
           .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
@@ -97,15 +106,45 @@ export default function ActiveWorkoutPage() {
             completed: true,
           })
         }
+
+        // Merge with snapshot if same workout (preserves pending edits)
+        const snap = loadSnapshot(user.id)
+        if (snap && snap.workoutId === active.id) {
+          // Add any local-only sets (no DB id, present in snapshot)
+          for (const snapEx of snap.exercises) {
+            const existing = groupMap.get(snapEx.exercise_order)
+            if (!existing) {
+              // Snapshot has an exercise we don't have from DB — add it
+              groupMap.set(snapEx.exercise_order, snapEx)
+            } else {
+              // Add snapshot sets that aren't yet in DB
+              for (const ss of snapEx.sets) {
+                if (!ss.id && !existing.sets.find(es => es.set_number === ss.set_number)) {
+                  existing.sets.push(ss)
+                }
+              }
+            }
+          }
+        }
+
         const restored = Array.from(groupMap.values()).sort(
           (a, b) => a.exercise_order - b.exercise_order
         )
         setExercises(restored)
-        // Active block: last exercise
         if (restored.length > 0) setActiveBlock(restored.length - 1)
+      } else {
+        // No DB workout — try snapshot recovery
+        const snap = loadSnapshot(user.id)
+        if (snap) {
+          setWorkoutName(snap.workoutName)
+          startedAt.current = snap.startedAt
+          setExercises(snap.exercises)
+          // workoutId stays null — will be lazily created on next action / flush
+          if (snap.exercises.length > 0) setActiveBlock(snap.exercises.length - 1)
+        }
       }
 
-      // Pre-fetch previous-performance map (excluding current workout if any)
+      // Prev-performance map (excluding the current workout)
       const perfMap: LastPerformanceMap = await fetchLastPerformanceMap(supabase, {
         excludeWorkoutId: activeId,
       })
@@ -148,22 +187,52 @@ export default function ActiveWorkoutPage() {
     return () => clearInterval(id)
   }, [resting])
 
-  // ── Debounced name persistence ────────────────────────────────────
+  // ── Debounced snapshot save ──────────────────────────────────────
   useEffect(() => {
-    if (!workoutId) return
+    if (!bootstrapped) return
     const t = setTimeout(() => {
-      supabase
-        .from('workouts')
-        .update({ name: workoutName || null })
-        .eq('id', workoutId)
-    }, 500)
+      saveSnapshot({
+        workoutId,
+        workoutName,
+        startedAt: startedAt.current,
+        exercises,
+        savedAt: Date.now(),
+        userId: userIdRef.current,
+      })
+    }, 400)
     return () => clearTimeout(t)
-  }, [workoutName, workoutId, supabase])
+  }, [bootstrapped, workoutId, workoutName, exercises])
+
+  // ── Debounced name persistence (best effort, with retry) ─────────
+  useEffect(() => {
+    if (!workoutId || !bootstrapped) return
+    const t = setTimeout(() => {
+      withRetry(
+        () =>
+          unwrap(
+            supabase
+              .from('workouts')
+              .update({ name: workoutName || null })
+              .eq('id', workoutId)
+              .select()
+              .single()
+          ),
+        { retries: 3 }
+      ).catch(() => {
+        /* snapshot has it */
+      })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [workoutName, workoutId, bootstrapped, supabase])
 
   // ── Derived ───────────────────────────────────────────────────────
   const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
   const doneSets = exercises.reduce(
     (a, e) => a + e.sets.filter(s => s.completed).length,
+    0
+  )
+  const pendingSyncSets = exercises.reduce(
+    (a, e) => a + e.sets.filter(s => s.completed && !s.id).length,
     0
   )
 
@@ -180,25 +249,132 @@ export default function ActiveWorkoutPage() {
   // ── Helpers ───────────────────────────────────────────────────────
   const ensureWorkout = useCallback(async (): Promise<string | null> => {
     if (workoutId) return workoutId
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
-    const { data: newWo, error } = await supabase
-      .from('workouts')
-      .insert({
-        user_id: user.id,
-        name: workoutName || null,
-        started_at: startedAt.current,
-      })
-      .select()
-      .single()
-    if (error || !newWo) return null
-    setWorkoutId(newWo.id)
-    return newWo.id
+    const userId =
+      userIdRef.current ?? (await supabase.auth.getUser()).data.user?.id ?? null
+    if (!userId) return null
+    userIdRef.current = userId
+    try {
+      const row = await withRetry(() =>
+        unwrap(
+          supabase
+            .from('workouts')
+            .insert({
+              user_id: userId,
+              name: workoutName || null,
+              started_at: startedAt.current,
+            })
+            .select()
+            .single()
+        )
+      )
+      if (!row) return null
+      const id = (row as { id: string }).id
+      setWorkoutId(id)
+      return id
+    } catch {
+      return null
+    }
   }, [workoutId, workoutName, supabase])
+
+  // ── Sync a single set (insert or update) with retry ──────────────
+  const syncSet = useCallback(
+    async (
+      blockIdx: number,
+      setIdx: number
+    ): Promise<{ ok: boolean; id?: string }> => {
+      const ex = exercises[blockIdx]
+      const set = ex?.sets[setIdx]
+      if (!ex || !set) return { ok: false }
+
+      const woId = await ensureWorkout()
+      if (!woId) return { ok: false }
+
+      const payload = {
+        workout_id: woId,
+        exercise_id: ex.exercise.id,
+        exercise_order: ex.exercise_order,
+        set_number: set.set_number,
+        weight_kg: set.weight_kg,
+        reps: set.reps,
+        rir: set.rir,
+        set_type: set.set_type,
+      }
+
+      try {
+        if (set.id) {
+          await withRetry(() =>
+            unwrap(
+              supabase
+                .from('workout_sets')
+                .update(payload)
+                .eq('id', set.id!)
+                .select()
+                .single()
+            )
+          )
+          return { ok: true, id: set.id }
+        } else {
+          const inserted = (await withRetry(() =>
+            unwrap(
+              supabase
+                .from('workout_sets')
+                .insert(payload)
+                .select()
+                .single()
+            )
+          )) as { id: string } | null
+          if (!inserted) return { ok: false }
+          return { ok: true, id: inserted.id }
+        }
+      } catch {
+        return { ok: false }
+      }
+    },
+    [exercises, ensureWorkout, supabase]
+  )
+
+  // ── Reconnect: flush any pending sets ─────────────────────────────
+  useEffect(() => {
+    if (!online || !bootstrapped) return
+    if (pendingSyncSets === 0) return
+
+    let cancelled = false
+    ;(async () => {
+      // Iterate by indices because state may mutate during loop
+      for (let bi = 0; bi < exercises.length; bi++) {
+        for (let si = 0; si < exercises[bi].sets.length; si++) {
+          const s = exercises[bi].sets[si]
+          if (cancelled) return
+          if (!s.completed || s.id) continue
+          const result = await syncSet(bi, si)
+          if (result.ok && result.id) {
+            setExercises(prev =>
+              prev.map((e, eb) =>
+                eb !== bi
+                  ? e
+                  : {
+                      ...e,
+                      sets: e.sets.map((ss, sj) =>
+                        sj !== si ? ss : { ...ss, id: result.id }
+                      ),
+                    }
+              )
+            )
+          }
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [online, bootstrapped, pendingSyncSets])
 
   // ── Handlers ──────────────────────────────────────────────────────
   const handleSelectExercise = useCallback(
     async (exercise: Exercise, previousSets?: PreviousSet[]) => {
+      // Lazy-create the workout row (with retry); if offline, this fails
+      // silently and snapshot still preserves user intent.
       await ensureWorkout()
 
       if (previousSets && previousSets.length > 0) {
@@ -280,62 +456,25 @@ export default function ActiveWorkoutPage() {
   const completeActiveSet = useCallback(async () => {
     if (!activeBlockData || activeSetIdx < 0) return
 
-    const woId = await ensureWorkout()
-    if (!woId) return
-
-    const block = activeBlockData
-    const set = block.sets[activeSetIdx]
+    const set = activeBlockData.sets[activeSetIdx]
     if (!set) return
-
-    const payload = {
-      workout_id: woId,
-      exercise_id: block.exercise.id,
-      exercise_order: block.exercise_order,
-      set_number: set.set_number,
-      weight_kg: set.weight_kg,
-      reps: set.reps,
-      rir: set.rir,
-      set_type: set.set_type,
-    }
-
     const wasNotCompleted = !set.completed
 
-    // Optimistic local mark
+    // 1) Optimistic local mark — UI is instant regardless of network
     setExercises(prev =>
-      prev.map((e, bi) => {
-        if (bi !== activeBlock) return e
-        return {
-          ...e,
-          sets: e.sets.map((s, i) =>
-            i === activeSetIdx ? { ...s, completed: true } : s
-          ),
-        }
-      })
-    )
-
-    if (set.id) {
-      await supabase.from('workout_sets').update(payload).eq('id', set.id)
-    } else {
-      const { data: inserted } = await supabase
-        .from('workout_sets')
-        .insert(payload)
-        .select()
-        .single()
-      if (inserted) {
-        setExercises(prev =>
-          prev.map((e, bi) => {
-            if (bi !== activeBlock) return e
-            return {
+      prev.map((e, bi) =>
+        bi !== activeBlock
+          ? e
+          : {
               ...e,
               sets: e.sets.map((s, i) =>
-                i === activeSetIdx ? { ...s, id: inserted.id } : s
+                i === activeSetIdx ? { ...s, completed: true } : s
               ),
             }
-          })
-        )
-      }
-    }
+      )
+    )
 
+    // 2) Feedback + rest immediately (don't wait for network)
     if (wasNotCompleted) {
       if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
         navigator.vibrate?.(20)
@@ -343,25 +482,36 @@ export default function ActiveWorkoutPage() {
       setRestRemain(90)
       setResting(true)
     }
-
-    // Clear manual override so derivation picks next incomplete
     setActiveSetOverride(null)
 
-    // Auto-advance to next block if this was last set
-    if (wasNotCompleted && block) {
-      const allDone = block.sets.every((s, i) => i === activeSetIdx || s.completed)
+    // 3) Auto-advance to next block if last set
+    if (wasNotCompleted && activeBlockData) {
+      const allDone = activeBlockData.sets.every(
+        (s, i) => i === activeSetIdx || s.completed
+      )
       if (allDone && activeBlock < exercises.length - 1) {
         setTimeout(() => setActiveBlock(b => b + 1), 100)
       }
     }
-  }, [
-    activeBlockData,
-    activeSetIdx,
-    activeBlock,
-    exercises.length,
-    ensureWorkout,
-    supabase,
-  ])
+
+    // 4) Background sync (with retry). Failure → snapshot still has it +
+    //    pending-flush will retry on reconnect.
+    const result = await syncSet(activeBlock, activeSetIdx)
+    if (result.ok && result.id && !set.id) {
+      setExercises(prev =>
+        prev.map((e, bi) =>
+          bi !== activeBlock
+            ? e
+            : {
+                ...e,
+                sets: e.sets.map((s, i) =>
+                  i === activeSetIdx ? { ...s, id: result.id } : s
+                ),
+              }
+        )
+      )
+    }
+  }, [activeBlockData, activeSetIdx, activeBlock, exercises.length, syncSet])
 
   const handleFinish = async () => {
     setSaving(true)
@@ -372,19 +522,68 @@ export default function ActiveWorkoutPage() {
       )
 
       if (!workoutId || completedTotal === 0) {
-        // Boş antrenman: discard
         if (workoutId) {
-          await supabase.from('workouts').delete().eq('id', workoutId)
+          await withRetry(
+            () =>
+              unwrap(
+                supabase
+                  .from('workouts')
+                  .delete()
+                  .eq('id', workoutId)
+                  .select()
+                  .maybeSingle()
+              ),
+            { retries: 3 }
+          ).catch(() => {})
         }
+        clearSnapshot()
         router.push('/')
         return
       }
 
-      await supabase
-        .from('workouts')
-        .update({ finished_at: new Date().toISOString() })
-        .eq('id', workoutId)
+      // Wait for any pending sync first (best effort, time-boxed)
+      if (pendingSyncSets > 0) {
+        const flushDeadline = Date.now() + 3000
+        for (let bi = 0; bi < exercises.length && Date.now() < flushDeadline; bi++) {
+          for (
+            let si = 0;
+            si < exercises[bi].sets.length && Date.now() < flushDeadline;
+            si++
+          ) {
+            const s = exercises[bi].sets[si]
+            if (s.completed && !s.id) {
+              const r = await syncSet(bi, si)
+              if (r.ok && r.id) {
+                setExercises(prev =>
+                  prev.map((e, eb) =>
+                    eb !== bi
+                      ? e
+                      : {
+                          ...e,
+                          sets: e.sets.map((ss, sj) =>
+                            sj !== si ? ss : { ...ss, id: r.id }
+                          ),
+                        }
+                  )
+                )
+              }
+            }
+          }
+        }
+      }
 
+      await withRetry(() =>
+        unwrap(
+          supabase
+            .from('workouts')
+            .update({ finished_at: new Date().toISOString() })
+            .eq('id', workoutId)
+            .select()
+            .single()
+        )
+      )
+
+      clearSnapshot()
       router.push(`/workout/${workoutId}`)
     } catch (err) {
       console.error(err)
@@ -455,6 +654,15 @@ export default function ActiveWorkoutPage() {
             {elapsedMin}:{String(elapsedSec).padStart(2, '0')}
           </div>
         </div>
+        {pendingSyncSets > 0 && (
+          <div className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-950/40 text-amber-400 text-[11px] font-semibold shadow-[inset_0_0_0_0.5px_rgb(245_158_11_/_0.3)]">
+            <CloudOff size={12} />
+            <span>
+              {pendingSyncSets} set yerel olarak kaydedildi · bağlantı kurulunca
+              senkronize olur
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Progress */}
@@ -506,7 +714,6 @@ export default function ActiveWorkoutPage() {
           ))
         )}
 
-        {/* Action row above composer */}
         {exercises.length > 0 && (
           <div className="flex gap-2.5 pt-1 pb-2">
             <Button

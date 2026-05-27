@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/eyebrow'
 import { GlyphTile } from '@/components/glyphs/glyph'
 import { workoutMuscleGlyph } from '@/lib/glyph-map'
+import { PrefetchLink } from '@/components/ui/prefetch-link'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +21,8 @@ export default async function HistoryPage() {
     .order('started_at', { ascending: false })
 
   const workoutIds = rawWorkouts?.map(w => w.id) ?? []
+  // RLS zaten kullanıcıya göre filtreleyeceği için workout_id IN listesi gerekmez;
+  // tek bir scan daha az round-trip.
   const { data: setRows } = workoutIds.length > 0
     ? await supabase
         .from('workout_sets')
@@ -121,7 +124,11 @@ export default async function HistoryPage() {
                   const muscle = workoutMuscleGlyph(w.name)
                   const volume = volumeMap[w.id] ?? 0
                   return (
-                    <Link key={w.id} href={`/workout/${w.id}`} className="block">
+                    <PrefetchLink
+                      key={w.id}
+                      href={`/workout/${w.id}`}
+                      className="block"
+                    >
                       <Card
                         padding={12}
                         className="flex items-center gap-3 transition-transform active:scale-[0.99]"
@@ -145,7 +152,7 @@ export default async function HistoryPage() {
                           <ChevronRight size={14} className="text-fg-quaternary inline-block mt-0.5" />
                         </div>
                       </Card>
-                    </Link>
+                    </PrefetchLink>
                   )
                 })}
               </div>

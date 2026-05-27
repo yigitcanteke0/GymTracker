@@ -13,20 +13,20 @@ export default async function EditWorkoutPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: workout, error } = await supabase
-    .from('workouts')
-    .select('*')
-    .eq('id', id)
-    .single()
+  const [workoutResult, setsResult] = await Promise.all([
+    supabase.from('workouts').select('*').eq('id', id).single(),
+    supabase
+      .from('workout_sets')
+      .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
+      .eq('workout_id', id)
+      .order('exercise_order')
+      .order('set_number'),
+  ])
 
-  if (error || !workout) notFound()
+  const workout = workoutResult.data
+  if (workoutResult.error || !workout) notFound()
 
-  const { data: sets } = await supabase
-    .from('workout_sets')
-    .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
-    .eq('workout_id', id)
-    .order('exercise_order')
-    .order('set_number')
+  const sets = setsResult.data
 
   // Setleri ActiveExercise[] formuna dönüştür
   const groupMap = new Map<number, ActiveExercise>()

@@ -24,20 +24,21 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: workout, error } = await supabase
-    .from('workouts')
-    .select('*')
-    .eq('id', id)
-    .single()
+  // Paralel fetch — workout meta + sets aynı round-trip'te
+  const [workoutResult, setsResult] = await Promise.all([
+    supabase.from('workouts').select('*').eq('id', id).single(),
+    supabase
+      .from('workout_sets')
+      .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
+      .eq('workout_id', id)
+      .order('exercise_order')
+      .order('set_number'),
+  ])
 
-  if (error || !workout) notFound()
+  const workout = workoutResult.data
+  if (workoutResult.error || !workout) notFound()
 
-  const { data: sets } = await supabase
-    .from('workout_sets')
-    .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
-    .eq('workout_id', id)
-    .order('exercise_order')
-    .order('set_number')
+  const sets = setsResult.data
 
   const groups: WorkoutExerciseGroup[] = []
   for (const set of sets ?? []) {
