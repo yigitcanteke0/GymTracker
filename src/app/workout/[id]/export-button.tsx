@@ -40,9 +40,10 @@ export function WorkoutExportButton({ workoutId, workoutName }: ExportButtonProp
   return (
     <button
       onClick={handleExport}
-      className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+      aria-label="CSV indir"
+      className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center hover:text-fg transition-colors"
     >
-      <Download size={14} strokeWidth={2.2} />
+      <Download size={15} strokeWidth={2.2} />
     </button>
   )
 }

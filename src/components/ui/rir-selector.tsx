@@ -2,57 +2,52 @@
 
 import { cn } from '@/lib/utils'
 
-const RIR_LABELS: Record<number, string> = {
-  0: 'Tükenme',
-  1: 'Çok zor',
-  2: 'Zor',
-  3: 'Orta',
-  4: 'Kolay',
-  5: 'Çok kolay',
-}
-
-// Effort gradient: red → emerald
-const RIR_COLORS: Record<number, string> = {
-  0: 'bg-red-600/90 text-white border-red-500/50 shadow-sm shadow-red-950/50',
-  1: 'bg-orange-600/90 text-white border-orange-500/50 shadow-sm shadow-orange-950/50',
-  2: 'bg-amber-600/90 text-white border-amber-500/50 shadow-sm shadow-amber-950/50',
-  3: 'bg-yellow-600/90 text-white border-yellow-500/50 shadow-sm shadow-yellow-950/50',
-  4: 'bg-lime-600/90 text-white border-lime-500/50 shadow-sm shadow-lime-950/50',
-  5: 'bg-emerald-600/90 text-white border-emerald-500/50 shadow-sm shadow-emerald-950/50',
-}
+const RIR_COLORS = ['#dc2626', '#ea580c', '#d97706', '#a3a341', '#65a342', '#16a34a']
+const RIR_LABELS = ['Maks', 'Çok zor', 'Zor', 'Orta', 'Kolay', 'Çok kolay']
 
 interface RirSelectorProps {
   value: number | null
   onChange: (v: number) => void
+  compact?: boolean
 }
 
-export function RirSelector({ value, onChange }: RirSelectorProps) {
+/**
+ * Standalone RIR selector — six pills with label below. For composer/dialog usage.
+ */
+export function RirSelector({ value, onChange, compact = false }: RirSelectorProps) {
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between px-0.5">
-        <span className="text-[11px] font-medium text-stone-500 uppercase tracking-[0.08em]">
-          RIR — Kalan Tekrar
-        </span>
-        {value !== null && (
-          <span className="text-[11px] font-medium text-stone-400">{RIR_LABELS[value]}</span>
-        )}
+    <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-6 gap-1.5">
+        {RIR_COLORS.map((c, i) => {
+          const on = i === value
+          return (
+            <button
+              key={i}
+              onClick={() => onChange(i)}
+              style={{
+                background: on ? c : undefined,
+                boxShadow: on
+                  ? `inset 0 0 0 1px rgb(255 255 255 / 0.15), 0 4px 12px -2px ${c}77`
+                  : undefined,
+              }}
+              className={cn(
+                'rounded-[10px] font-bold tnum transition-all active:scale-[0.96] select-none',
+                compact ? 'h-9 text-sm' : 'h-11 text-base',
+                on
+                  ? 'text-white'
+                  : 'bg-surface-3 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)]'
+              )}
+            >
+              {i}
+            </button>
+          )
+        })}
       </div>
-      <div className="flex gap-1.5">
-        {[0, 1, 2, 3, 4, 5].map(r => (
-          <button
-            key={r}
-            onClick={() => onChange(r)}
-            className={cn(
-              'flex-1 h-12 rounded-lg border text-base font-semibold transition-all active:scale-[0.96] select-none tnum',
-              value === r
-                ? RIR_COLORS[r]
-                : 'bg-stone-900 border-stone-800/80 text-stone-400 hover:bg-stone-800 hover:text-stone-200'
-            )}
-          >
-            {r}
-          </button>
-        ))}
-      </div>
+      {value !== null && (
+        <p className="text-[11px] text-fg-tertiary text-center font-medium tracking-[-0.005em]">
+          RIR {value} · {RIR_LABELS[value]}
+        </p>
+      )}
     </div>
   )
 }

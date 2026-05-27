@@ -1,218 +1,191 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { ChevronDown, ChevronUp, Plus, GripVertical, Check } from 'lucide-react'
-import { ActiveExercise, ActiveSet, SetType, MuscleGroup } from '@/types'
-import { SetRow } from './set-row'
-import { Stepper } from '@/components/ui/stepper'
-import { RirSelector } from '@/components/ui/rir-selector'
-import { Button } from '@/components/ui/button'
+import { Plus, Check } from 'lucide-react'
+import { ActiveExercise, MuscleGroup } from '@/types'
+import type { PreviousSet } from '@/lib/last-performance'
+import { Card } from '@/components/ui/card'
+import { GlyphTile } from '@/components/glyphs/glyph'
+import { exerciseGlyph } from '@/lib/glyph-map'
 import { cn } from '@/lib/utils'
+
+const RIR_COLORS = ['#dc2626', '#ea580c', '#d97706', '#a3a341', '#65a342', '#16a34a']
+const rirColor = (r: number | null) => RIR_COLORS[r ?? 3] ?? '#65a342'
 
 interface ExerciseCardProps {
   exerciseGroup: ActiveExercise
-  previousSets?: { weight_kg: number; reps: number; rir: number | null }[]
-  onChange: (updated: ActiveExercise) => void
-  onRemove: () => void
+  previousSets?: PreviousSet[]
+  isCurrent: boolean
+  activeSetIdx: number
+  onSetClick: (setIdx: number) => void
+  onAddSet: () => void
+  onRemove?: () => void
 }
 
 export function ExerciseCard({
   exerciseGroup,
   previousSets,
-  onChange,
+  isCurrent,
+  activeSetIdx,
+  onSetClick,
+  onAddSet,
   onRemove,
 }: ExerciseCardProps) {
-  const [collapsed, setCollapsed] = useState(false)
-  const [activeSetIndex, setActiveSetIndex] = useState<number | null>(
-    exerciseGroup.sets.findIndex(s => !s.completed)
-  )
+  const { exercise, sets } = exerciseGroup
+  const mg = exercise.muscle_group as MuscleGroup | undefined
+  const done = sets.filter(s => s.completed).length
+  const total = sets.length
+  const glyph = exerciseGlyph(exercise.name, exercise.equipment)
 
-  const updateSet = useCallback(
-    (idx: number, patch: Partial<ActiveSet>) => {
-      const sets = exerciseGroup.sets.map((s, i) => (i === idx ? { ...s, ...patch } : s))
-      onChange({ ...exerciseGroup, sets })
-    },
-    [exerciseGroup, onChange]
-  )
-
-  const addSet = useCallback(() => {
-    const last = exerciseGroup.sets[exerciseGroup.sets.length - 1]
-    const newSet: ActiveSet = {
-      exercise_order: exerciseGroup.exercise_order,
-      set_number: exerciseGroup.sets.length + 1,
-      weight_kg: last?.weight_kg ?? 0,
-      reps: last?.reps ?? 10,
-      rir: last?.rir ?? 2,
-      set_type: 'working' as SetType,
-      completed: false,
-    }
-    const sets = [...exerciseGroup.sets, newSet]
-    onChange({ ...exerciseGroup, sets })
-    setActiveSetIndex(sets.length - 1)
-  }, [exerciseGroup, onChange])
-
-  const deleteSet = useCallback(
-    (idx: number) => {
-      const sets = exerciseGroup.sets
-        .filter((_, i) => i !== idx)
-        .map((s, i) => ({ ...s, set_number: i + 1 }))
-      onChange({ ...exerciseGroup, sets })
-      if (activeSetIndex !== null && activeSetIndex >= sets.length) {
-        setActiveSetIndex(sets.length - 1)
-      }
-    },
-    [exerciseGroup, onChange, activeSetIndex]
-  )
-
-  const toggleComplete = useCallback(
-    (idx: number) => {
-      const set = exerciseGroup.sets[idx]
-      updateSet(idx, { completed: !set.completed })
-      if (!set.completed) {
-        const nextIdx = exerciseGroup.sets.findIndex(
-          (s, i) => i > idx && !s.completed
-        )
-        setActiveSetIndex(nextIdx === -1 ? null : nextIdx)
-      }
-    },
-    [exerciseGroup, updateSet]
-  )
-
-  const activeSet = activeSetIndex !== null ? exerciseGroup.sets[activeSetIndex] : null
-  const completedCount = exerciseGroup.sets.filter(s => s.completed).length
-  const totalCount = exerciseGroup.sets.length
-  const mg = exerciseGroup.exercise.muscle_group as MuscleGroup | undefined
+  const ringDash = total > 0 ? (done / total) * (2 * Math.PI * 14) : 0
 
   return (
-    <div className="bg-stone-900/60 rounded-2xl border border-stone-800/80 overflow-hidden shadow-lg shadow-stone-950/20">
-      {/* Card header */}
-      <div className="flex items-center gap-2.5 px-3.5 py-3">
-        <GripVertical size={16} className="text-stone-600 shrink-0" />
-        <span className="text-xl shrink-0">{exerciseGroup.exercise.icon}</span>
+    <Card
+      padding={14}
+      className={cn(
+        'transition-all duration-200',
+        isCurrent
+          ? 'bg-surface !shadow-[inset_0_0_0_1px_var(--color-accent-border),0_8px_24px_-16px_var(--color-accent-950)]'
+          : '!bg-surface-dim'
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-2.5">
+        <GlyphTile name={glyph} size={44} />
         <div className="flex-1 min-w-0">
-          <p className="text-stone-50 font-medium text-[15px] truncate leading-tight">
-            {exerciseGroup.exercise.name}
-          </p>
-          <p className="text-[11px] text-stone-500 mt-0.5 flex items-center gap-1.5">
-            <span className="tnum">
-              {completedCount}/{totalCount} set
-            </span>
-            {mg && (
-              <>
-                <span className="text-stone-700">·</span>
-                <span>{mg.name}</span>
-              </>
-            )}
-          </p>
-        </div>
-        {completedCount === totalCount && totalCount > 0 && (
-          <div className="h-6 w-6 rounded-full bg-emerald-600/20 flex items-center justify-center">
-            <Check size={12} className="text-emerald-400" strokeWidth={3} />
+          <div className="text-[15.5px] font-semibold text-fg tracking-[-0.01em] truncate">
+            {exercise.name}
           </div>
-        )}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          className="h-8 w-8 flex items-center justify-center rounded-lg text-stone-500 hover:bg-stone-800 hover:text-stone-300 transition-colors"
-        >
-          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
+          <div className="text-[11.5px] text-fg-tertiary mt-px">
+            {mg?.name ?? ''} · {exercise.equipment}
+          </div>
+        </div>
+        {/* Progress ring */}
+        <div className="relative w-9 h-9 shrink-0">
+          <svg width="36" height="36" viewBox="0 0 36 36" className="-rotate-90">
+            <circle cx="18" cy="18" r="14" fill="none" stroke="var(--color-surface-3)" strokeWidth="3" />
+            <circle
+              cx="18"
+              cy="18"
+              r="14"
+              fill="none"
+              stroke={isCurrent ? 'var(--color-accent-500)' : 'var(--color-fg-tertiary)'}
+              strokeWidth="3"
+              strokeDasharray={`${ringDash} 999`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center text-[10.5px] font-bold text-fg-secondary tnum">
+            {done}/{total}
+          </div>
+        </div>
       </div>
 
-      {!collapsed && (
-        <>
-          {/* Set listesi */}
-          <div className="px-2.5 space-y-1.5 pb-3">
-            {/* Kolon başlıkları */}
-            <div className="flex items-center gap-2 px-3 pb-0.5">
-              <div className="w-7 text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
-                Set
-              </div>
-              <div className="w-[72px] text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
-                Önceki
-              </div>
-              <div className="flex-1 text-center text-[10px] text-stone-600 uppercase tracking-wider font-medium">
-                kg × tekrar
-              </div>
-              <div className="w-8" />
-              <div className="w-10" />
-            </div>
+      {/* Set rows */}
+      <div className="flex flex-col gap-0.5">
+        {sets.map((s, i) => {
+          const isActive = isCurrent && i === activeSetIdx
+          const prev = previousSets?.[i] ?? null
+          const bg = s.completed
+            ? 'bg-accent-row'
+            : isActive
+            ? 'bg-surface-3 shadow-[inset_0_0_0_1px_var(--color-accent-border)]'
+            : 'bg-transparent'
 
-            {exerciseGroup.sets.map((set, idx) => (
-              <SetRow
-                key={idx}
-                set={set}
-                isActive={activeSetIndex === idx}
-                previousData={previousSets?.[idx] ?? null}
-                onActivate={() => !set.completed && setActiveSetIndex(idx)}
-                onToggleComplete={() => toggleComplete(idx)}
-                onDelete={() => deleteSet(idx)}
-              />
-            ))}
-
-            <button
-              onClick={addSet}
-              className="w-full flex items-center justify-center gap-1.5 h-10 mt-1 rounded-xl border border-dashed border-stone-800 text-stone-500 hover:border-stone-600 hover:text-stone-300 hover:bg-stone-900/40 transition-all text-[13px] font-medium"
+          return (
+            <div
+              key={i}
+              onClick={() => onSetClick(i)}
+              className={cn(
+                'grid items-center gap-2.5 px-3 py-2 rounded-[10px] cursor-pointer transition-all',
+                bg
+              )}
+              style={{ gridTemplateColumns: '24px 1fr auto auto' }}
             >
-              <Plus size={14} />
-              Set Ekle
-            </button>
-          </div>
-
-          {/* Aktif set input paneli */}
-          {activeSet && !activeSet.completed && (
-            <div className="border-t border-stone-800/70 bg-stone-950/40 px-4 py-4 space-y-4 animate-fade-up">
-              <p className="text-[11px] text-stone-500 font-medium uppercase tracking-[0.08em] text-center">
-                Set {activeSetIndex! + 1} · Değerleri Gir
-              </p>
-
-              <Stepper
-                label="Ağırlık"
-                unit="kg"
-                value={activeSet.weight_kg}
-                onChange={v => updateSet(activeSetIndex!, { weight_kg: v })}
-                min={0}
-                max={500}
-                step={2.5}
-                quickSteps={[5]}
-              />
-
-              <Stepper
-                label="Tekrar"
-                value={activeSet.reps}
-                onChange={v => updateSet(activeSetIndex!, { reps: v })}
-                min={1}
-                max={100}
-                step={1}
-              />
-
-              <RirSelector
-                value={activeSet.rir}
-                onChange={v => updateSet(activeSetIndex!, { rir: v })}
-              />
-
-              <Button
-                variant="success"
-                size="lg"
-                className="w-full"
-                onClick={() => toggleComplete(activeSetIndex!)}
+              {/* set tile */}
+              <div
+                className={cn(
+                  'w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold',
+                  s.completed
+                    ? 'bg-success text-white'
+                    : isActive
+                    ? 'bg-accent-600 text-white'
+                    : 'bg-surface-3 text-fg-tertiary shadow-[inset_0_0_0_0.5px_var(--color-border)]'
+                )}
               >
-                <Check size={18} strokeWidth={2.5} />
-                Set Tamamla
-              </Button>
-            </div>
-          )}
+                {s.completed ? <Check size={11} strokeWidth={3} /> : i + 1}
+              </div>
 
-          {/* Egzersizi kaldır */}
-          <div className="border-t border-stone-800/70 px-4 py-2 flex justify-end">
-            <button
-              onClick={onRemove}
-              className="text-[11px] text-stone-600 hover:text-red-400 transition-colors font-medium"
-            >
-              Egzersizi kaldır
-            </button>
-          </div>
-        </>
+              {/* value or previous reference */}
+              <div className="min-w-0 whitespace-nowrap overflow-hidden">
+                {s.completed ? (
+                  <div className="text-[14px] font-semibold text-fg tnum tracking-[-0.005em]">
+                    {s.weight_kg}
+                    <span className="text-fg-tertiary font-medium text-[11px]">kg</span>
+                    <span className="mx-1.5 text-fg-tertiary opacity-50">×</span>
+                    {s.reps}
+                    <span className="text-fg-tertiary font-medium text-[11px]"> rep</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 text-[12px] text-fg-tertiary tnum">
+                    <span className="text-[9px] font-bold tracking-[0.08em] text-fg-quaternary uppercase">
+                      Önceki
+                    </span>
+                    {prev ? (
+                      <span>
+                        {prev.weight_kg}kg × {prev.reps}
+                      </span>
+                    ) : (
+                      <span className="text-fg-quaternary">—</span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* RIR badge or active label */}
+              {s.completed && s.rir !== null ? (
+                <div
+                  style={{
+                    background: `${rirColor(s.rir)}22`,
+                    color: rirColor(s.rir),
+                    boxShadow: `inset 0 0 0 0.5px ${rirColor(s.rir)}33`,
+                  }}
+                  className="h-[22px] px-2 rounded-full inline-flex items-center text-[10.5px] font-bold tnum tracking-[0.02em]"
+                >
+                  RIR {s.rir}
+                </div>
+              ) : (
+                <div />
+              )}
+
+              {isActive && !s.completed ? (
+                <div className="text-[10px] font-bold text-accent-300 tracking-[0.08em] uppercase whitespace-nowrap">
+                  Aktif
+                </div>
+              ) : (
+                <div />
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Add set */}
+      <button
+        onClick={onAddSet}
+        className="mt-1.5 h-8 w-full bg-transparent text-fg-tertiary text-[12px] font-semibold rounded-[10px] inline-flex items-center justify-center gap-1 shadow-[inset_0_0_0_0.5px_var(--color-border)] hover:text-fg-secondary transition-colors"
+      >
+        <Plus size={13} strokeWidth={2.5} />
+        Set Ekle
+      </button>
+
+      {onRemove && (
+        <button
+          onClick={onRemove}
+          className="mt-2 w-full text-[11px] text-fg-quaternary hover:text-danger transition-colors font-medium"
+        >
+          Egzersizi kaldır
+        </button>
       )}
-    </div>
+    </Card>
   )
 }

@@ -1,15 +1,16 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, CheckCircle2 } from 'lucide-react'
+import { Plus, X, Check, Pencil, Timer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { ActiveExercise, Exercise, SetType } from '@/types'
+import type { ActiveExercise, ActiveSet, Exercise, SetType } from '@/types'
 import type { PreviousSet } from '@/lib/last-performance'
 import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
-import { WorkoutTimer } from '@/components/workout/workout-timer'
+import { SetComposer } from '@/components/workout/set-composer'
 import { Button } from '@/components/ui/button'
+import { Eyebrow } from '@/components/ui/eyebrow'
 import { LongPressButton } from '@/components/ui/long-press-button'
 
 export default function ActiveWorkoutPage() {
@@ -20,17 +21,53 @@ export default function ActiveWorkoutPage() {
   const [workoutName, setWorkoutName] = useState('')
   const [exercises, setExercises] = useState<ActiveExercise[]>([])
   const [previousSetsMap, setPreviousSetsMap] = useState<Record<string, PreviousSet[]>>({})
+  const [activeBlock, setActiveBlock] = useState(0)
   const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(false)
 
+  const [elapsed, setElapsed] = useState(0)
+  const [resting, setResting] = useState(false)
+  const [restRemain, setRestRemain] = useState(0)
+  const [editingName, setEditingName] = useState(false)
+
+  // ── Clocks ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const start = new Date(startedAt.current).getTime()
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    if (!resting) return
+    const id = setInterval(() => {
+      setRestRemain(r => {
+        if (r <= 1) {
+          setResting(false)
+          return 0
+        }
+        return r - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [resting])
+
+  // ── Derived state ─────────────────────────────────────────────────
+  const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
+  const doneSets = exercises.reduce((a, e) => a + e.sets.filter(s => s.completed).length, 0)
+
+  const activeBlockData = exercises[activeBlock]
+  const activeSetIdx = useMemo(() => {
+    if (!activeBlockData) return -1
+    const idx = activeBlockData.sets.findIndex(s => !s.completed)
+    return idx === -1 ? activeBlockData.sets.length - 1 : idx
+  }, [activeBlockData])
+
+  // ── Handlers ──────────────────────────────────────────────────────
   const handleSelectExercise = useCallback(
     (exercise: Exercise, previousSets?: PreviousSet[]) => {
-      // Önceki setleri sakla (varsa)
       if (previousSets && previousSets.length > 0) {
         setPreviousSetsMap(prev => ({ ...prev, [exercise.id]: previousSets }))
       }
-
-      // Yeni setin başlangıç değerleri için önceki seti referans al
       const firstPrev = previousSets?.[0]
 
       setExercises(prev => {
@@ -52,25 +89,84 @@ export default function ActiveWorkoutPage() {
         }
         return [...prev, newExercise]
       })
+      setActiveBlock(exercises.length) // new exercise becomes active
       setShowPicker(false)
     },
-    []
+    [exercises.length]
   )
 
-  const handleExerciseChange = useCallback(
-    (idx: number, updated: ActiveExercise) => {
-      setExercises(prev => prev.map((e, i) => (i === idx ? updated : e)))
+  const updateActiveSet = useCallback(
+    (patch: Partial<ActiveSet>) => {
+      setExercises(prev =>
+        prev.map((e, bi) => {
+          if (bi !== activeBlock) return e
+          return {
+            ...e,
+            sets: e.sets.map((s, i) => (i === activeSetIdx ? { ...s, ...patch } : s)),
+          }
+        })
+      )
     },
-    []
+    [activeBlock, activeSetIdx]
   )
 
-  const handleRemoveExercise = useCallback((idx: number) => {
+  const handleSetClick = useCallback((blockIdx: number, setIdx: number) => {
+    setActiveBlock(blockIdx)
+    // tapping a different set: leave activeSetIdx derivation, but
+    // override by un-completing nothing — we just refocus the block.
+    void setIdx
+  }, [])
+
+  const handleAddSet = useCallback((blockIdx: number) => {
     setExercises(prev =>
-      prev
-        .filter((_, i) => i !== idx)
-        .map((e, i) => ({ ...e, exercise_order: i + 1 }))
+      prev.map((e, bi) => {
+        if (bi !== blockIdx) return e
+        const last = e.sets[e.sets.length - 1]
+        return {
+          ...e,
+          sets: [
+            ...e.sets,
+            {
+              exercise_order: e.exercise_order,
+              set_number: e.sets.length + 1,
+              weight_kg: last?.weight_kg ?? 0,
+              reps: last?.reps ?? 10,
+              rir: last?.rir ?? 2,
+              set_type: 'working' as SetType,
+              completed: false,
+            },
+          ],
+        }
+      })
     )
   }, [])
+
+  const completeActiveSet = useCallback(() => {
+    if (!activeBlockData || activeSetIdx < 0) return
+    setExercises(prev =>
+      prev.map((e, bi) => {
+        if (bi !== activeBlock) return e
+        return {
+          ...e,
+          sets: e.sets.map((s, i) => (i === activeSetIdx ? { ...s, completed: true } : s)),
+        }
+      })
+    )
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate?.(20)
+    }
+    setRestRemain(90)
+    setResting(true)
+
+    // Advance to next exercise if this was the last set of the block
+    const block = exercises[activeBlock]
+    if (block) {
+      const allDone = block.sets.every((s, i) => i === activeSetIdx || s.completed)
+      if (allDone && activeBlock < exercises.length - 1) {
+        setTimeout(() => setActiveBlock(b => b + 1), 100)
+      }
+    }
+  }, [activeBlockData, activeBlock, activeSetIdx, exercises])
 
   const handleFinish = async () => {
     setSaving(true)
@@ -81,7 +177,6 @@ export default function ActiveWorkoutPage() {
         return
       }
 
-      // Workout oluştur
       const { data: workout, error: wError } = await supabase
         .from('workouts')
         .insert({
@@ -95,7 +190,6 @@ export default function ActiveWorkoutPage() {
 
       if (wError || !workout) throw wError
 
-      // Tüm setleri toplu ekle
       const allSets = exercises.flatMap(eg =>
         eg.sets
           .filter(s => s.completed)
@@ -123,12 +217,7 @@ export default function ActiveWorkoutPage() {
     }
   }
 
-  const totalSets = exercises.reduce((acc, e) => acc + e.sets.length, 0)
-  const completedSets = exercises.reduce(
-    (acc, e) => acc + e.sets.filter(s => s.completed).length,
-    0
-  )
-
+  // ── Render ────────────────────────────────────────────────────────
   if (showPicker) {
     return (
       <ExercisePicker
@@ -138,59 +227,85 @@ export default function ActiveWorkoutPage() {
     )
   }
 
+  const elapsedMin = Math.floor(elapsed / 60)
+  const elapsedSec = elapsed % 60
+
   return (
-    <div className="flex flex-col min-h-screen bg-stone-950">
+    <div className="flex flex-col min-h-screen bg-bg">
       {/* Sticky header */}
-      <div className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-md border-b border-stone-900">
-        <div className="flex items-center gap-3 px-4 py-3">
+      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => router.push('/')}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+            aria-label="Kapat"
+            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-semibold text-accent-500 uppercase tracking-[0.1em]">
-              Aktif Antrenman
-            </p>
-            <input
-              value={workoutName}
-              onChange={e => setWorkoutName(e.target.value)}
-              placeholder="Antrenman adı"
-              className="w-full bg-transparent text-stone-50 font-semibold text-[15px] placeholder-stone-600 outline-none"
-            />
+            <Eyebrow>Aktif Antrenman</Eyebrow>
+            {editingName ? (
+              <input
+                autoFocus
+                value={workoutName}
+                onChange={e => setWorkoutName(e.target.value)}
+                onBlur={() => setEditingName(false)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') setEditingName(false)
+                }}
+                placeholder="Antrenman adı"
+                className="w-full bg-transparent text-fg font-semibold text-[17px] tracking-[-0.01em] placeholder-fg-quaternary outline-none"
+              />
+            ) : (
+              <button
+                onClick={() => setEditingName(true)}
+                className="text-fg font-semibold text-[17px] tracking-[-0.01em] inline-flex items-center gap-1.5"
+              >
+                <span>{workoutName || 'Yeni Antrenman'}</span>
+                <Pencil size={13} className="text-fg-tertiary" />
+              </button>
+            )}
           </div>
-          <WorkoutTimer startedAt={startedAt.current} />
+          <div className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] text-[14px] font-semibold text-fg-secondary tnum">
+            <Timer size={14} className="text-fg-tertiary" />
+            {elapsedMin}:{String(elapsedSec).padStart(2, '0')}
+          </div>
         </div>
-        {totalSets > 0 && (
-          <div className="px-4 pb-3">
-            <div className="flex items-center gap-2.5">
-              <div className="flex-1 h-1 bg-stone-900 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${(completedSets / totalSets) * 100}%` }}
-                />
-              </div>
-              <span className="text-[11px] text-stone-500 tnum font-medium">
-                {completedSets}/{totalSets} set
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 px-4 py-4 space-y-3">
+      {/* Progress */}
+      {totalSets > 0 && (
+        <div className="px-3.5 pb-2">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <Eyebrow>İlerleme</Eyebrow>
+            <span className="text-[12px] font-semibold text-fg-secondary tnum">
+              {doneSets}/{totalSets} set
+            </span>
+          </div>
+          <div className="h-[5px] rounded-full bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] overflow-hidden relative">
+            <div
+              className="h-full bg-gradient-to-r from-accent-700 to-accent-500 rounded-full transition-[width] duration-500 ease-[cubic-bezier(.4,0,.2,1)]"
+              style={{
+                width: `${(doneSets / totalSets) * 100}%`,
+                boxShadow: '0 0 12px var(--color-accent-950)',
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Exercise list */}
+      <div className="flex-1 overflow-auto px-3.5 pb-5 flex flex-col gap-2.5">
         {exercises.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
-            <div className="h-20 w-20 rounded-full bg-stone-900 border border-stone-800 flex items-center justify-center">
-              <span className="text-4xl">🏋️</span>
+            <div className="w-20 h-20 rounded-2xl bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center">
+              <Plus size={32} className="text-fg-tertiary" strokeWidth={2.2} />
             </div>
             <div className="space-y-1">
-              <p className="text-stone-100 font-semibold text-lg tracking-tight">
+              <p className="text-fg font-semibold text-lg tracking-tight">
                 Antrenman başladı
               </p>
-              <p className="text-stone-500 text-sm">İlk egzersizini ekle</p>
+              <p className="text-fg-tertiary text-sm">İlk egzersizini ekle</p>
             </div>
           </div>
         ) : (
@@ -199,38 +314,70 @@ export default function ActiveWorkoutPage() {
               key={`${eg.exercise.id}-${eg.exercise_order}`}
               exerciseGroup={eg}
               previousSets={previousSetsMap[eg.exercise.id]}
-              onChange={updated => handleExerciseChange(idx, updated)}
-              onRemove={() => handleRemoveExercise(idx)}
+              isCurrent={idx === activeBlock}
+              activeSetIdx={idx === activeBlock ? activeSetIdx : -1}
+              onSetClick={(setIdx) => handleSetClick(idx, setIdx)}
+              onAddSet={() => handleAddSet(idx)}
             />
           ))
         )}
-      </div>
 
-      {/* Sticky footer */}
-      <div className="sticky bottom-0 bg-stone-950/90 backdrop-blur-md border-t border-stone-900 px-4 py-3.5 space-y-2.5">
-        <Button
-          variant="secondary"
-          size="lg"
-          className="w-full"
-          onClick={() => setShowPicker(true)}
-        >
-          <Plus size={18} strokeWidth={2.5} />
-          Egzersiz Ekle
-        </Button>
-
+        {/* Action row above composer */}
         {exercises.length > 0 && (
-          <LongPressButton
-            onComplete={handleFinish}
-            duration={1200}
-            disabled={saving}
-            holdingLabel="Bitiriliyor"
-            className="w-full h-[52px] rounded-xl border border-emerald-800/60 bg-emerald-950/30 text-emerald-300 font-medium text-[15px]"
-          >
-            <CheckCircle2 size={18} strokeWidth={2.2} />
-            {saving ? 'Kaydediliyor…' : 'Antrenmanı Bitir — Basılı Tut'}
-          </LongPressButton>
+          <div className="flex gap-2.5 pt-1 pb-2">
+            <Button
+              variant="secondary"
+              size="md"
+              full
+              onClick={() => setShowPicker(true)}
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Egzersiz Ekle
+            </Button>
+            <LongPressButton
+              variant="success"
+              size="lg"
+              className="flex-1"
+              onComplete={handleFinish}
+              disabled={saving}
+            >
+              <Check size={16} strokeWidth={2.5} />
+              {saving ? 'Kaydediliyor…' : 'Bitir — Basılı Tut'}
+            </LongPressButton>
+          </div>
+        )}
+
+        {exercises.length === 0 && (
+          <div className="pt-2">
+            <Button
+              variant="secondary"
+              size="lg"
+              full
+              onClick={() => setShowPicker(true)}
+            >
+              <Plus size={18} strokeWidth={2.5} />
+              Egzersiz Ekle
+            </Button>
+          </div>
         )}
       </div>
+
+      {/* Bottom composer */}
+      {activeBlockData && activeSetIdx >= 0 && (
+        <SetComposer
+          exerciseGroup={activeBlockData}
+          setIdx={activeSetIdx}
+          previousSets={previousSetsMap[activeBlockData.exercise.id]}
+          resting={resting}
+          restRemain={restRemain}
+          onSkipRest={() => {
+            setResting(false)
+            setRestRemain(0)
+          }}
+          onUpdate={updateActiveSet}
+          onComplete={completeActiveSet}
+        />
+      )}
     </div>
   )
 }

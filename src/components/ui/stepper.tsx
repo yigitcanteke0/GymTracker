@@ -1,7 +1,6 @@
 'use client'
 
 import { cn } from '@/lib/utils'
-import { Minus, Plus } from 'lucide-react'
 
 interface StepperProps {
   value: number
@@ -9,80 +8,94 @@ interface StepperProps {
   min?: number
   max?: number
   step?: number
-  label?: string
+  quickStep?: number
   unit?: string
-  quickSteps?: number[]
+  accent?: boolean
+  /** Height of the row in px. Default 50. */
+  h?: number
   className?: string
 }
 
+/**
+ * Big +/− stepper with optional quick-step outsides. Matches the SetComposer spec.
+ *
+ * Layout:  [−q]? [−]   value unit   [+]   [+q]?
+ */
 export function Stepper({
   value,
   onChange,
   min = 0,
   max = 999,
   step = 1,
-  label,
+  quickStep,
   unit,
-  quickSteps,
+  accent,
+  h = 50,
   className,
 }: StepperProps) {
-  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 10) / 10))
+  const apply = (n: number) => {
+    const clamped = Math.max(min, Math.min(max, n))
+    onChange(Math.round(clamped * 10) / 10)
+  }
+
+  const stepBtnBase =
+    'shrink-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center font-semibold transition-transform active:scale-[0.94] select-none tnum'
 
   return (
-    <div className={cn('flex flex-col gap-2.5', className)}>
-      {label && (
-        <span className="text-[11px] font-medium text-stone-500 uppercase tracking-[0.08em] text-center">
-          {label}
-        </span>
+    <div className={cn('flex items-center gap-1.5', className)}>
+      {quickStep !== undefined && (
+        <button
+          onClick={() => apply(value - quickStep)}
+          style={{ width: 42, height: h }}
+          className={cn(stepBtnBase, 'text-[12px] text-accent-400')}
+        >
+          −{quickStep}
+        </button>
       )}
-      <div className="flex items-center gap-1.5">
-        {quickSteps?.map(s => (
-          <button
-            key={`minus-${s}`}
-            onClick={() => onChange(clamp(value - s))}
-            className="h-12 px-2.5 rounded-lg bg-stone-900 text-stone-400 font-medium text-[13px] tnum
-                       border border-stone-800/80
-                       active:bg-stone-800 active:scale-[0.97] transition-all select-none"
-          >
-            −{s}
-          </button>
-        ))}
+      <button
+        onClick={() => apply(value - step)}
+        style={{ width: 44, height: h }}
+        className={cn(stepBtnBase, 'text-[22px] text-fg-secondary')}
+      >
+        −
+      </button>
 
-        <div className="flex-1 flex items-center gap-1.5">
-          <button
-            onClick={() => onChange(clamp(value - step))}
-            className="h-12 flex-1 rounded-lg bg-stone-900 text-stone-200 flex items-center justify-center
-                       border border-stone-800/80
-                       active:bg-stone-800 active:scale-[0.97] transition-all select-none"
-          >
-            <Minus size={18} strokeWidth={2.5} />
-          </button>
-          <div className="min-w-[5rem] text-center">
-            <span className="text-2xl font-semibold text-white tnum tracking-tight">{value}</span>
-            {unit && <span className="text-xs text-stone-500 ml-1 font-medium">{unit}</span>}
-          </div>
-          <button
-            onClick={() => onChange(clamp(value + step))}
-            className="h-12 flex-1 rounded-lg bg-stone-900 text-stone-200 flex items-center justify-center
-                       border border-stone-800/80
-                       active:bg-stone-800 active:scale-[0.97] transition-all select-none"
-          >
-            <Plus size={18} strokeWidth={2.5} />
-          </button>
-        </div>
-
-        {quickSteps?.map(s => (
-          <button
-            key={`plus-${s}`}
-            onClick={() => onChange(clamp(value + s))}
-            className="h-12 px-2.5 rounded-lg bg-stone-900 text-stone-400 font-medium text-[13px] tnum
-                       border border-stone-800/80
-                       active:bg-stone-800 active:scale-[0.97] transition-all select-none"
-          >
-            +{s}
-          </button>
-        ))}
+      <div
+        style={{ height: h }}
+        className="flex-1 min-w-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-baseline justify-center gap-1 px-2 relative"
+      >
+        <span
+          style={{ fontSize: h >= 54 ? 28 : 24, lineHeight: 1 }}
+          className={cn(
+            'font-semibold tracking-[-0.02em] tnum',
+            accent ? 'text-accent-300' : 'text-fg'
+          )}
+        >
+          {value}
+        </span>
+        {unit && (
+          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-fg-tertiary">
+            {unit}
+          </span>
+        )}
       </div>
+
+      <button
+        onClick={() => apply(value + step)}
+        style={{ width: 44, height: h }}
+        className={cn(stepBtnBase, 'text-[22px] text-fg-secondary')}
+      >
+        +
+      </button>
+      {quickStep !== undefined && (
+        <button
+          onClick={() => apply(value + quickStep)}
+          style={{ width: 42, height: h }}
+          className={cn(stepBtnBase, 'text-[12px] text-accent-400')}
+        >
+          +{quickStep}
+        </button>
+      )}
     </div>
   )
 }

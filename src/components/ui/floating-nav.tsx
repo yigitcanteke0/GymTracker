@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, History, Dumbbell, Play, LogOut, Menu, X } from 'lucide-react'
+import { Home, History, Dumbbell, Plus, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -42,79 +42,100 @@ export function FloatingNav() {
     router.refresh()
   }
 
-  const items = [
-    { href: '/', icon: Home, label: 'Ana Sayfa' },
-    { href: '/workout/active', icon: Play, label: 'Yeni Antrenman', accent: true },
-    { href: '/history', icon: History, label: 'Geçmiş' },
-    { href: '/exercises', icon: Dumbbell, label: 'Egzersizler' },
+  const items: { href: string; icon: React.ReactNode; label: string; id: string }[] = [
+    { id: 'dashboard', href: '/', icon: <Home size={20} />, label: 'Ana Sayfa' },
+    {
+      id: 'active',
+      href: '/workout/active',
+      icon: <Plus size={20} strokeWidth={2.5} />,
+      label: 'Yeni Antrenman',
+    },
+    { id: 'history', href: '/history', icon: <History size={20} />, label: 'Geçmiş' },
+    {
+      id: 'exercises',
+      href: '/exercises',
+      icon: <Dumbbell size={20} />,
+      label: 'Egzersizler',
+    },
   ]
+
+  const isActive = (href: string) => pathname === href
 
   return (
     <>
       {/* Backdrop */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 bg-stone-950/70 backdrop-blur-sm transition-opacity duration-200',
-          open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-        )}
-        onClick={() => setOpen(false)}
-      />
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[40] bg-black/40 backdrop-blur-sm animate-fade-in"
+        />
+      )}
 
-      {/* Menu items */}
       <div
         className={cn(
-          'fixed bottom-24 right-4 z-50 flex flex-col items-end gap-2 transition-all duration-200',
-          open
-            ? 'opacity-100 translate-y-0 pointer-events-auto'
-            : 'opacity-0 translate-y-3 pointer-events-none'
+          'fixed bottom-7 right-4 z-[50] flex flex-col items-end gap-2.5'
         )}
       >
-        {items.map((item, i) => {
-          const Icon = item.icon
-          const active = pathname === item.href
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              style={{ transitionDelay: open ? `${i * 25}ms` : '0ms' }}
-              className={cn(
-                'flex items-center gap-2.5 pl-3.5 pr-4 h-11 rounded-xl font-medium text-[14px] transition-all active:scale-[0.96] shadow-lg shadow-stone-950/60',
-                item.accent
-                  ? 'bg-accent-600 text-white border border-accent-500/40'
-                  : active
-                  ? 'bg-stone-100 text-stone-900'
-                  : 'bg-stone-900 text-stone-200 border border-stone-800'
-              )}
+        {/* Pill menu */}
+        {open && (
+          <div className="flex flex-col items-end gap-2 animate-fade-up">
+            {items.map(item => {
+              const active = isActive(item.href)
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'h-[46px] pl-1.5 pr-4 rounded-full inline-flex items-center gap-2.5 text-[13.5px] font-semibold tracking-[-0.005em] transition-all active:scale-[0.96]',
+                    active
+                      ? 'bg-accent-600 text-white shadow-[0_8px_24px_-4px_var(--color-accent-950),inset_0_0_0_0.5px_rgb(255_255_255_/_0.1)]'
+                      : 'bg-surface-elevated text-fg shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)]'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'w-9 h-9 rounded-full flex items-center justify-center',
+                      active
+                        ? 'bg-black/15 text-white'
+                        : 'bg-surface-3 text-fg-secondary'
+                    )}
+                  >
+                    {item.icon}
+                  </div>
+                  {item.label}
+                </Link>
+              )
+            })}
+            <button
+              onClick={() => {
+                setOpen(false)
+                handleLogout()
+              }}
+              className="h-[46px] pl-1.5 pr-4 rounded-full inline-flex items-center gap-2.5 text-[13.5px] font-semibold tracking-[-0.005em] bg-surface-elevated text-fg-secondary hover:text-danger shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)] transition-all active:scale-[0.96]"
             >
-              <Icon size={16} strokeWidth={2.2} />
-              <span>{item.label}</span>
-            </Link>
-          )
-        })}
+              <div className="w-9 h-9 rounded-full bg-surface-3 flex items-center justify-center">
+                <LogOut size={20} />
+              </div>
+              Çıkış
+            </button>
+          </div>
+        )}
+
+        {/* Main FAB */}
         <button
-          onClick={() => { setOpen(false); handleLogout() }}
-          style={{ transitionDelay: open ? `${items.length * 25}ms` : '0ms' }}
-          className="flex items-center gap-2.5 pl-3.5 pr-4 h-11 rounded-xl font-medium text-[14px] bg-stone-900 text-stone-400 border border-stone-800 hover:text-red-400 hover:border-red-900/60 shadow-lg shadow-stone-950/60 transition-all active:scale-[0.96]"
+          onClick={() => setOpen(o => !o)}
+          aria-label={open ? 'Menüyü kapat' : 'Menüyü aç'}
+          className={cn(
+            'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ease-[cubic-bezier(.3,.7,.4,1)] active:scale-[0.92]',
+            open
+              ? 'bg-surface-elevated text-fg rotate-45 shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)]'
+              : 'bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white shadow-[0_8px_24px_-4px_var(--color-accent-950),inset_0_1px_0_rgb(255_255_255_/_0.18)]'
+          )}
         >
-          <LogOut size={16} strokeWidth={2.2} />
-          <span>Çıkış</span>
+          <Plus size={22} strokeWidth={2.8} />
         </button>
       </div>
-
-      {/* FAB toggle */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        aria-label={open ? 'Menüyü kapat' : 'Menüyü aç'}
-        className={cn(
-          'fixed bottom-5 right-4 z-50 h-14 w-14 rounded-full shadow-xl shadow-stone-950/70 flex items-center justify-center transition-all duration-200 active:scale-90',
-          open
-            ? 'bg-stone-100 text-stone-900 rotate-90'
-            : 'bg-accent-600 text-white hover:bg-accent-500 border border-accent-500/30'
-        )}
-      >
-        {open ? <X size={22} strokeWidth={2.5} /> : <Menu size={22} strokeWidth={2.5} />}
-      </button>
     </>
   )
 }

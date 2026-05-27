@@ -44,7 +44,7 @@ export function HistoryExportButton() {
   return (
     <button
       onClick={handleExport}
-      className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-stone-900 text-stone-300 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-100 transition-colors text-[13px] font-medium"
+      className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] hover:text-fg transition-colors text-[12.5px] font-semibold"
     >
       <Download size={13} strokeWidth={2.2} />
       CSV

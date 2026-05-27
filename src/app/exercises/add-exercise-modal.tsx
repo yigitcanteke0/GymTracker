@@ -5,16 +5,18 @@ import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { MuscleGroup, Equipment } from '@/types'
 import { Button } from '@/components/ui/button'
+import { Chip } from '@/components/ui/chip'
+import { Eyebrow } from '@/components/ui/eyebrow'
 import { cn } from '@/lib/utils'
 
 const ICONS = ['🏋️', '💪', '🔄', '⬆️', '⬇️', '↔️', '🦵', '🧘', '🏃', '⚙️', '🔨', '💀', '🤸']
 const EQUIPMENT: { value: Equipment; label: string }[] = [
-  { value: 'barbell',    label: 'Barbell' },
-  { value: 'dumbbell',   label: 'Dumbbell' },
-  { value: 'cable',      label: 'Kablo' },
-  { value: 'machine',    label: 'Makine' },
+  { value: 'barbell', label: 'Barbell' },
+  { value: 'dumbbell', label: 'Dumbbell' },
+  { value: 'cable', label: 'Kablo' },
+  { value: 'machine', label: 'Makine' },
   { value: 'bodyweight', label: 'Vücut Ağırlığı' },
-  { value: 'other',      label: 'Diğer' },
+  { value: 'other', label: 'Diğer' },
 ]
 
 interface AddExerciseModalProps {
@@ -23,7 +25,11 @@ interface AddExerciseModalProps {
   onSaved: () => void
 }
 
-export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExerciseModalProps) {
+export function AddExerciseModal({
+  muscleGroups,
+  onClose,
+  onSaved,
+}: AddExerciseModalProps) {
   const [name, setName] = useState('')
   const [muscleGroupId, setMuscleGroupId] = useState('')
   const [equipment, setEquipment] = useState<Equipment>('barbell')
@@ -34,10 +40,15 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
   const supabase = createClient()
 
   const handleSave = async () => {
-    if (!name.trim()) { setError('Egzersiz adı zorunlu'); return }
+    if (!name.trim()) {
+      setError('Egzersiz adı zorunlu')
+      return
+    }
     setSaving(true)
     setError('')
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
     if (!user) return
 
     const { error: err } = await supabase.from('exercises').insert({
@@ -58,20 +69,21 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-stone-950/70 backdrop-blur-sm flex items-end animate-fade-up">
-      <div className="w-full bg-stone-950 rounded-t-3xl border-t border-stone-800 p-5 pt-4 space-y-5 max-h-[92vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end animate-fade-in">
+      <div className="w-full bg-bg rounded-t-3xl shadow-[0_-12px_48px_rgb(0_0_0_/_0.5)] p-5 pt-3 space-y-5 max-h-[92vh] overflow-y-auto animate-slide-up">
         {/* Drag handle */}
-        <div className="flex justify-center -mt-1 mb-2">
-          <div className="h-1 w-10 rounded-full bg-stone-700" />
+        <div className="flex justify-center pb-1">
+          <div className="h-1 w-10 rounded-full bg-fg-quaternary/40" />
         </div>
 
         <div className="flex items-center justify-between">
-          <h2 className="text-stone-50 font-semibold text-[17px] tracking-tight">
+          <h2 className="text-fg font-semibold text-[17px] tracking-[-0.01em]">
             Yeni Egzersiz
           </h2>
           <button
             onClick={onClose}
-            className="h-8 w-8 flex items-center justify-center rounded-lg bg-stone-900 text-stone-400 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+            aria-label="Kapat"
+            className="w-8 h-8 rounded-lg bg-surface-2 text-fg-tertiary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center hover:text-fg transition-colors"
           >
             <X size={16} />
           </button>
@@ -79,23 +91,19 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
 
         {/* Name */}
         <div className="space-y-2">
-          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
-            Egzersiz Adı
-          </label>
+          <Eyebrow>Egzersiz Adı</Eyebrow>
           <input
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="ör. Bulgarian Split Squat"
-            className="w-full bg-stone-900 text-stone-100 rounded-xl px-4 h-12 placeholder-stone-600 outline-none border border-stone-800/80 focus:border-accent-600/60 transition-colors"
+            className="w-full bg-surface-2 text-fg rounded-[14px] px-4 h-12 outline-none shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] transition-shadow placeholder:text-fg-tertiary text-[14px] font-medium tracking-[-0.005em]"
           />
         </div>
 
         {/* Icon */}
         <div className="space-y-2">
-          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
-            İkon
-          </label>
+          <Eyebrow>İkon</Eyebrow>
           <div className="flex flex-wrap gap-1.5">
             {ICONS.map(i => (
               <button
@@ -104,8 +112,8 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
                 className={cn(
                   'h-10 w-10 rounded-lg text-xl flex items-center justify-center transition-all active:scale-90',
                   icon === i
-                    ? 'bg-accent-600/20 ring-1 ring-accent-500'
-                    : 'bg-stone-900 border border-stone-800/80 hover:bg-stone-800'
+                    ? 'bg-accent-soft shadow-[inset_0_0_0_1px_var(--color-accent-500)]'
+                    : 'bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)]'
                 )}
               >
                 {i}
@@ -116,52 +124,38 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
 
         {/* Muscle group */}
         <div className="space-y-2">
-          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
-            Kas Grubu
-          </label>
+          <Eyebrow>Kas Grubu</Eyebrow>
           <div className="flex flex-wrap gap-1.5">
             {muscleGroups.map(mg => (
-              <button
+              <Chip
                 key={mg.id}
+                active={muscleGroupId === mg.id}
                 onClick={() => setMuscleGroupId(mg.id === muscleGroupId ? '' : mg.id)}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 h-9 rounded-lg text-[13px] font-medium transition-all active:scale-[0.97]',
-                  muscleGroupId === mg.id
-                    ? 'bg-stone-100 text-stone-900'
-                    : 'bg-stone-900 text-stone-300 border border-stone-800/80 hover:bg-stone-800'
-                )}
               >
-                {mg.icon} {mg.name}
-              </button>
+                {mg.name}
+              </Chip>
             ))}
           </div>
         </div>
 
         {/* Equipment */}
         <div className="space-y-2">
-          <label className="text-[11px] font-semibold text-stone-500 uppercase tracking-[0.08em] block px-0.5">
-            Ekipman
-          </label>
+          <Eyebrow>Ekipman</Eyebrow>
           <div className="flex flex-wrap gap-1.5">
             {EQUIPMENT.map(eq => (
-              <button
+              <Chip
                 key={eq.value}
+                active={equipment === eq.value}
                 onClick={() => setEquipment(eq.value)}
-                className={cn(
-                  'px-3 h-9 rounded-lg text-[13px] font-medium transition-all active:scale-[0.97]',
-                  equipment === eq.value
-                    ? 'bg-stone-100 text-stone-900'
-                    : 'bg-stone-900 text-stone-300 border border-stone-800/80 hover:bg-stone-800'
-                )}
               >
                 {eq.label}
-              </button>
+              </Chip>
             ))}
           </div>
         </div>
 
         {error && (
-          <p className="text-red-400 text-[13px] px-1 py-2 rounded-lg bg-red-950/30 border border-red-900/40">
+          <p className="text-[13px] px-3 py-2 rounded-lg bg-danger/10 text-danger shadow-[inset_0_0_0_0.5px_rgb(220_38_38_/_0.3)]">
             {error}
           </p>
         )}
@@ -169,7 +163,7 @@ export function AddExerciseModal({ muscleGroups, onClose, onSaved }: AddExercise
         <Button
           variant="primary"
           size="lg"
-          className="w-full"
+          full
           onClick={handleSave}
           disabled={saving}
         >

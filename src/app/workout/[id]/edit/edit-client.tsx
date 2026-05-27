@@ -2,13 +2,16 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Save, Trash2 } from 'lucide-react'
+import { Plus, X, Save, Trash2, FileEdit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { ActiveExercise, Exercise, SetType } from '@/types'
+import type { ActiveExercise, ActiveSet, Exercise, SetType } from '@/types'
 import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
 import { Button } from '@/components/ui/button'
+import { Eyebrow } from '@/components/ui/eyebrow'
 import { LongPressButton } from '@/components/ui/long-press-button'
+import { Stepper } from '@/components/ui/stepper'
+import { RirRail } from '@/components/ui/rir-rail'
 
 interface EditWorkoutClientProps {
   workoutId: string
@@ -26,63 +29,90 @@ export function EditWorkoutClient({
 
   const [workoutName, setWorkoutName] = useState(initialName)
   const [exercises, setExercises] = useState<ActiveExercise[]>(initialExercises)
+  const [editing, setEditing] = useState<{ block: number; setIdx: number } | null>(
+    initialExercises.length > 0 ? { block: 0, setIdx: 0 } : null
+  )
   const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const handleSelectExercise = useCallback((exercise: Exercise) => {
-    // Edit modunda previousSets ignore — kullanıcı zaten geçmişi düzenliyor
-    setExercises(prev => {
-      const order = prev.length + 1
-      const last = prev[prev.length - 1]?.sets.slice(-1)[0]
-      const newExercise: ActiveExercise = {
-        exercise,
-        exercise_order: order,
-        sets: [
-          {
-            exercise_order: order,
-            set_number: 1,
-            weight_kg: last?.weight_kg ?? 0,
-            reps: last?.reps ?? 10,
-            rir: last?.rir ?? 2,
-            set_type: 'working' as SetType,
-            completed: true,
-          },
-        ],
-      }
-      return [...prev, newExercise]
-    })
-    setShowPicker(false)
-  }, [])
+  const handleSelectExercise = useCallback(
+    (exercise: Exercise) => {
+      setExercises(prev => {
+        const order = prev.length + 1
+        const last = prev[prev.length - 1]?.sets.slice(-1)[0]
+        const newExercise: ActiveExercise = {
+          exercise,
+          exercise_order: order,
+          sets: [
+            {
+              exercise_order: order,
+              set_number: 1,
+              weight_kg: last?.weight_kg ?? 0,
+              reps: last?.reps ?? 10,
+              rir: last?.rir ?? 2,
+              set_type: 'working' as SetType,
+              completed: true,
+            },
+          ],
+        }
+        return [...prev, newExercise]
+      })
+      setEditing({ block: exercises.length, setIdx: 0 })
+      setShowPicker(false)
+    },
+    [exercises.length]
+  )
 
-  const handleExerciseChange = useCallback(
-    (idx: number, updated: ActiveExercise) => {
-      setExercises(prev => prev.map((e, i) => (i === idx ? updated : e)))
+  const updateSet = useCallback(
+    (block: number, setIdx: number, patch: Partial<ActiveSet>) => {
+      setExercises(prev =>
+        prev.map((e, bi) => {
+          if (bi !== block) return e
+          return {
+            ...e,
+            sets: e.sets.map((s, i) => (i === setIdx ? { ...s, ...patch } : s)),
+          }
+        })
+      )
     },
     []
   )
 
-  const handleRemoveExercise = useCallback((idx: number) => {
+  const handleAddSet = useCallback((block: number) => {
     setExercises(prev =>
-      prev
-        .filter((_, i) => i !== idx)
-        .map((e, i) => ({ ...e, exercise_order: i + 1 }))
+      prev.map((e, bi) => {
+        if (bi !== block) return e
+        const last = e.sets[e.sets.length - 1]
+        return {
+          ...e,
+          sets: [
+            ...e.sets,
+            {
+              exercise_order: e.exercise_order,
+              set_number: e.sets.length + 1,
+              weight_kg: last?.weight_kg ?? 0,
+              reps: last?.reps ?? 10,
+              rir: last?.rir ?? 2,
+              set_type: 'working' as SetType,
+              completed: true,
+            },
+          ],
+        }
+      })
     )
   }, [])
 
   const handleSave = async () => {
     setSaving(true)
     try {
-      // İsim güncelle
       await supabase
         .from('workouts')
         .update({ name: workoutName || null })
         .eq('id', workoutId)
 
-      // Mevcut tüm setleri sil
       await supabase.from('workout_sets').delete().eq('workout_id', workoutId)
 
-      // Yeni setleri ekle
       const allSets = exercises.flatMap(eg =>
         eg.sets
           .filter(s => s.completed)
@@ -127,83 +157,133 @@ export function EditWorkoutClient({
     )
   }
 
+  const activeEx = editing ? exercises[editing.block] : null
+  const activeSet = activeEx?.sets[editing!.setIdx]
+
   return (
-    <div className="flex flex-col min-h-screen bg-stone-950">
-      <div className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-md border-b border-stone-900">
-        <div className="flex items-center gap-3 px-4 py-3">
+    <div className="flex flex-col min-h-screen bg-bg">
+      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={() => router.back()}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+            aria-label="Geri"
+            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-[0.1em]">
-              Düzenleme
-            </p>
+            <Eyebrow tone="accent">Düzenleme</Eyebrow>
             <input
               value={workoutName}
               onChange={e => setWorkoutName(e.target.value)}
               placeholder="Antrenman adı"
-              className="w-full bg-transparent text-stone-50 font-semibold text-[15px] placeholder-stone-600 outline-none"
+              className="w-full bg-transparent text-fg font-semibold text-[17px] tracking-[-0.01em] placeholder-fg-quaternary outline-none"
             />
           </div>
         </div>
       </div>
 
-      <div className="flex-1 px-4 py-4 space-y-3 pb-32">
+      <div className="flex-1 overflow-auto px-3.5 pb-48 flex flex-col gap-2.5">
         {exercises.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-            <div className="h-16 w-16 rounded-2xl bg-stone-900 border border-stone-800 flex items-center justify-center">
-              <span className="text-3xl">📝</span>
+            <div className="w-16 h-16 rounded-2xl bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center">
+              <FileEdit size={24} className="text-fg-tertiary" />
             </div>
-            <p className="text-stone-500 text-sm">Henüz egzersiz yok</p>
+            <p className="text-fg-tertiary text-sm">Henüz egzersiz yok</p>
           </div>
         ) : (
           exercises.map((eg, idx) => (
             <ExerciseCard
               key={`${eg.exercise.id}-${eg.exercise_order}`}
               exerciseGroup={eg}
-              onChange={updated => handleExerciseChange(idx, updated)}
-              onRemove={() => handleRemoveExercise(idx)}
+              isCurrent={editing?.block === idx}
+              activeSetIdx={editing?.block === idx ? editing.setIdx : -1}
+              onSetClick={(setIdx) => setEditing({ block: idx, setIdx })}
+              onAddSet={() => handleAddSet(idx)}
+              onRemove={() => {
+                setExercises(prev =>
+                  prev
+                    .filter((_, i) => i !== idx)
+                    .map((e, i) => ({ ...e, exercise_order: i + 1 }))
+                )
+                if (editing?.block === idx) setEditing(null)
+              }}
             />
           ))
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-stone-950/90 backdrop-blur-md border-t border-stone-900 px-4 py-3.5 space-y-2.5">
-        <Button
-          variant="secondary"
-          size="lg"
-          className="w-full"
-          onClick={() => setShowPicker(true)}
-        >
-          <Plus size={18} strokeWidth={2.5} />
-          Egzersiz Ekle
-        </Button>
+      {/* Sticky composer for editing a set */}
+      <div
+        className="sticky bottom-0 z-10 bg-bg shadow-[0_-8px_24px_rgb(0_0_0_/_0.3)]"
+        style={{ borderTop: '0.5px solid var(--color-border)' }}
+      >
+        {activeSet && editing && (
+          <div className="px-3 pt-2.5 pb-2 flex flex-col gap-2">
+            <div className="flex items-center gap-2 px-0.5">
+              <span className="text-[10px] font-bold tracking-[0.08em] uppercase text-fg-tertiary">
+                Set {editing.setIdx + 1} · {activeEx?.exercise.name}
+              </span>
+            </div>
+            <Stepper
+              value={activeSet.weight_kg}
+              step={2.5}
+              quickStep={5}
+              unit="kg"
+              h={44}
+              accent
+              onChange={(v) => updateSet(editing.block, editing.setIdx, { weight_kg: v })}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Stepper
+                value={activeSet.reps}
+                step={1}
+                unit="rep"
+                h={44}
+                onChange={(v) => updateSet(editing.block, editing.setIdx, { reps: v })}
+              />
+              <RirRail
+                value={activeSet.rir}
+                onChange={(v) => updateSet(editing.block, editing.setIdx, { rir: v })}
+                h={44}
+              />
+            </div>
+          </div>
+        )}
 
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full"
-          onClick={handleSave}
-          disabled={saving || deleting}
-        >
-          <Save size={18} strokeWidth={2.2} />
-          {saving ? 'Kaydediliyor…' : 'Değişiklikleri Kaydet'}
-        </Button>
-
-        <LongPressButton
-          onComplete={handleDelete}
-          duration={1500}
-          disabled={saving || deleting}
-          holdingLabel="Siliniyor"
-          fillClassName="bg-red-500/30"
-          className="w-full h-11 rounded-xl bg-stone-900 border border-stone-800/80 text-red-400 font-medium text-[13px] hover:bg-red-950/30 hover:border-red-900/60 transition-colors"
-        >
-          <Trash2 size={13} strokeWidth={2.2} />
-          Antrenmanı Sil — Basılı Tut
-        </LongPressButton>
+        <div className="px-3 pt-2 pb-3 flex flex-col gap-2 border-t border-[var(--color-border)]/60">
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="md"
+              full
+              onClick={() => setShowPicker(true)}
+            >
+              <Plus size={16} strokeWidth={2.5} />
+              Egzersiz
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              className="flex-1"
+              onClick={handleSave}
+              disabled={saving || deleting}
+            >
+              <Save size={15} strokeWidth={2.2} />
+              {saving ? 'Kaydediliyor…' : 'Kaydet'}
+            </Button>
+          </div>
+          <LongPressButton
+            variant="danger"
+            size="lg"
+            duration={1500}
+            disabled={saving || deleting}
+            onComplete={handleDelete}
+          >
+            <Trash2 size={14} strokeWidth={2.2} />
+            Antrenmanı Sil — Basılı Tut
+          </LongPressButton>
+        </div>
       </div>
     </div>
   )

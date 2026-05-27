@@ -1,27 +1,36 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Play, TrendingUp, ChevronRight, Calendar, Dumbbell } from 'lucide-react'
-import { formatDate, formatDuration } from '@/lib/utils'
+import { Plus, Flame, ChevronRight, Dumbbell } from 'lucide-react'
+import { formatDate } from '@/lib/utils'
+import { Card } from '@/components/ui/card'
+import { Eyebrow } from '@/components/ui/eyebrow'
+import { BigNum } from '@/components/ui/big-num'
+import { Glyph, GlyphTile } from '@/components/glyphs/glyph'
+import { workoutMuscleGlyph } from '@/lib/glyph-map'
 
 export const dynamic = 'force-dynamic'
+
+const DAY_LABELS = ['P', 'S', 'Ç', 'P', 'C', 'C', 'P']
 
 export default async function DashboardPage() {
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Son tamamlanmış antrenmanlardan fazlasını çekip 0 setli olanları filtrele
-  const { data: recentRaw } = user
-    ? await supabase
-        .from('workouts')
-        .select('*')
-        .not('finished_at', 'is', null)
-        .order('started_at', { ascending: false })
-        .limit(15)
-    : { data: null }
+  if (!user) {
+    return <UnauthedSplash />
+  }
+
+  // Recent (filter empty workouts)
+  const { data: recentRaw } = await supabase
+    .from('workouts')
+    .select('*')
+    .not('finished_at', 'is', null)
+    .order('started_at', { ascending: false })
+    .limit(15)
 
   const recentIds = recentRaw?.map(w => w.id) ?? []
-  const { data: recentSetCounts } = user && recentIds.length > 0
+  const { data: recentSetCounts } = recentIds.length > 0
     ? await supabase
         .from('workout_sets')
         .select('workout_id')
@@ -35,164 +44,223 @@ export default async function DashboardPage() {
     },
     {}
   )
-
   const recentWorkouts = (recentRaw ?? [])
     .filter(w => (recentCountMap[w.id] ?? 0) > 0)
     .slice(0, 5)
 
+  // Week stats
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-  const { data: weekSets } = user
-    ? await supabase
-        .from('workout_sets')
-        .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
-        .gte('workout.started_at', sevenDaysAgo)
-    : { data: null }
+  const { data: weekSets } = await supabase
+    .from('workout_sets')
+    .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
+    .gte('workout.started_at', sevenDaysAgo)
 
   const weekVolume = (weekSets ?? []).reduce(
-    (acc, s) => acc + s.weight_kg * (s.reps ?? 0),
+    (acc, s) => acc + Number(s.weight_kg) * (s.reps ?? 0),
     0
   )
 
-  const weekWorkoutIds = new Set(
-    (weekSets ?? []).map((s) => {
-      const wo = s.workout as { started_at?: string } | null
-      return wo?.started_at
-    }).filter(Boolean)
-  )
+  // Distinct workout days this week
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  // Monday-based week index
+  const monday = new Date(today)
+  const dayOfWeek = (today.getDay() + 6) % 7 // Mon=0..Sun=6
+  monday.setDate(today.getDate() - dayOfWeek)
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-stone-950 flex flex-col items-center justify-center px-6 gap-10">
-        <div className="text-center space-y-3">
-          <div className="h-16 w-16 rounded-2xl bg-accent-600 mx-auto flex items-center justify-center shadow-lg shadow-accent-950/40">
-            <Dumbbell size={28} className="text-white" strokeWidth={2.2} />
-          </div>
-          <h1 className="text-3xl font-semibold text-stone-50 tracking-tight">
-            Workout Tracker
-          </h1>
-          <p className="text-stone-400 text-[15px]">
-            Antrenmanlarını sade ve hızlı tut.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2.5 w-full max-w-sm">
-          <Link
-            href="/login"
-            className="flex items-center justify-center h-13 rounded-xl bg-accent-600 hover:bg-accent-500 text-white font-medium text-[15px] transition-colors active:scale-[0.98]"
-          >
-            Giriş Yap
-          </Link>
-          <Link
-            href="/signup"
-            className="flex items-center justify-center h-13 rounded-xl bg-stone-900 border border-stone-800 hover:border-stone-700 text-stone-100 font-medium text-[15px] transition-colors active:scale-[0.98]"
-          >
-            Hesap Oluştur
-          </Link>
-        </div>
-      </div>
-    )
+  const weekDayActive = [false, false, false, false, false, false, false]
+  const weekWorkoutDates = new Set<string>()
+  for (const s of weekSets ?? []) {
+    const wo = s.workout as { started_at?: string } | null
+    if (!wo?.started_at) continue
+    const d = new Date(wo.started_at)
+    d.setHours(0, 0, 0, 0)
+    const diff = Math.floor((d.getTime() - monday.getTime()) / 86400000)
+    if (diff >= 0 && diff < 7) {
+      weekDayActive[diff] = true
+      weekWorkoutDates.add(d.toISOString().slice(0, 10))
+    }
   }
+  const weekWorkoutCount = weekWorkoutDates.size
+
+  // Greeting
+  const now = new Date()
+  const dayName = new Intl.DateTimeFormat('tr-TR', { weekday: 'long' }).format(now)
+  const dayNumber = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(now)
+  const greeting = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} · ${dayNumber}`
 
   return (
-    <div className="min-h-screen bg-stone-950 pb-32">
-      {/* Header */}
-      <div className="px-5 pt-14 pb-7">
-        <p className="text-stone-500 text-[13px] font-medium">Merhaba 👋</p>
-        <h1 className="text-stone-50 text-[26px] font-semibold mt-1 tracking-tight leading-tight">
-          Bugün ne çalışıyoruz?
+    <div className="px-4 pt-3 pb-32 flex flex-col gap-4">
+      {/* Header greeting */}
+      <div className="px-1 pt-2 pb-1">
+        <Eyebrow tone="accent">{greeting}</Eyebrow>
+        <h1 className="text-[26px] font-semibold text-fg tracking-[-0.02em] mt-1">
+          Selam.
         </h1>
+        <p className="text-[14.5px] text-fg-tertiary mt-0.5 tracking-[-0.005em]">
+          Bugün hangi kası çalıştıracaksın?
+        </p>
       </div>
 
-      {/* Haftalık özet */}
-      <div className="px-5 mb-4">
-        <div className="bg-stone-900/60 rounded-2xl border border-stone-800/80 p-5">
-          <div className="flex items-center gap-2 text-stone-400 mb-4">
-            <TrendingUp size={14} strokeWidth={2.2} />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.1em]">
-              Bu Hafta
-            </span>
+      {/* Hero: Bu Hafta */}
+      <Card
+        padding={0}
+        className="relative overflow-hidden bg-[linear-gradient(135deg,var(--color-accent-950)_0%,var(--color-surface)_60%)]"
+      >
+        {/* decorative grain */}
+        <div
+          className="absolute inset-0 opacity-40 pointer-events-none"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 20% 30%, rgb(31 90 151 / 0.15), transparent 50%)',
+          }}
+        />
+        {/* corner glyph */}
+        <div
+          className="absolute -right-3.5 -bottom-3.5 text-accent-900 opacity-60 pointer-events-none"
+          style={{ transform: 'rotate(-12deg)' }}
+        >
+          <Glyph name="chest" size={110} />
+        </div>
+
+        <div className="relative p-[18px] flex flex-col gap-3.5">
+          <div className="flex items-center justify-between gap-2">
+            <Eyebrow>Bu Hafta</Eyebrow>
+            <div className="inline-flex items-center gap-1 bg-surface-3 rounded-full px-2.5 py-1 text-[11.5px] font-semibold text-amber-400 shadow-[inset_0_0_0_0.5px_rgb(245_158_11_/_0.2)] whitespace-nowrap">
+              <Flame size={13} strokeWidth={2} fill="currentColor" />
+              <span className="text-fg-secondary">{weekWorkoutCount} antrenman</span>
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <p className="text-[28px] font-semibold text-stone-50 tnum tracking-tight leading-none">
-                {weekWorkoutIds.size}
-              </p>
-              <p className="text-[12px] text-stone-500 mt-1.5">Antrenman</p>
-            </div>
-            <div>
-              <p className="text-[28px] font-semibold text-stone-50 tnum tracking-tight leading-none">
-                {weekVolume > 0 ? `${(weekVolume / 1000).toFixed(1)}` : '0'}
-                <span className="text-stone-500 text-base font-normal ml-1">ton</span>
-              </p>
-              <p className="text-[12px] text-stone-500 mt-1.5">Toplam Hacim</p>
-            </div>
+
+          <div className="flex gap-6 items-baseline">
+            <BigNum value={weekWorkoutCount} unit="antrenman" size={42} />
+            <div className="w-px h-9 bg-border self-center" />
+            <BigNum
+              value={weekVolume > 0 ? (weekVolume / 1000).toFixed(1) : '0'}
+              unit="ton"
+              size={42}
+            />
+          </div>
+
+          {/* Week dots */}
+          <div className="flex gap-1.5 mt-0.5">
+            {DAY_LABELS.map((d, i) => {
+              const done = weekDayActive[i]
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div
+                    className={`h-1.5 w-full rounded-full ${
+                      done
+                        ? 'bg-accent-600 shadow-[0_0_0_0.5px_var(--color-accent-border)]'
+                        : 'bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)]'
+                    }`}
+                  />
+                  <div className="text-[10px] text-fg-tertiary font-semibold">{d}</div>
+                </div>
+              )
+            })}
           </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Hızlı başlat */}
-      <div className="px-5 mb-8">
+      {/* Primary CTA */}
+      <Link
+        href="/workout/active"
+        prefetch
+        className="relative overflow-hidden h-[76px] rounded-[18px] flex items-center gap-3.5 px-[18px] bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_8px_24px_-8px_var(--color-accent-950),0_1px_2px_rgb(0_0_0_/_0.4)] transition-transform active:scale-[0.99]"
+      >
+        <div className="w-[50px] h-[50px] rounded-[14px] bg-black/20 flex items-center justify-center shadow-[inset_0_0_0_0.5px_rgb(255_255_255_/_0.15)]">
+          <Plus size={26} strokeWidth={2.5} />
+        </div>
+        <div className="flex-1 text-left">
+          <Eyebrow className="!text-white/70">Yeni</Eyebrow>
+          <div className="text-[19px] font-semibold tracking-[-0.015em] mt-0.5">
+            Antrenman Başlat
+          </div>
+        </div>
+        <ChevronRight className="opacity-70" />
+      </Link>
+
+      {/* Recent workouts */}
+      <div className="px-1 pt-1 flex items-center justify-between">
+        <Eyebrow>Son Antrenmanlar</Eyebrow>
         <Link
-          href="/workout/active"
-          prefetch
-          className="group flex items-center justify-center gap-3 h-16 rounded-2xl bg-accent-600 hover:bg-accent-500 active:bg-accent-700 text-white font-semibold text-lg transition-all active:scale-[0.99] shadow-lg shadow-accent-950/30"
+          href="/history"
+          className="text-fg-tertiary text-[12px] font-semibold inline-flex items-center gap-0.5"
         >
-          <Play size={22} strokeWidth={2.5} fill="white" />
-          Antrenman Başlat
+          Tümü <ChevronRight size={12} />
         </Link>
       </div>
 
-      {/* Son antrenmanlar */}
-      {recentWorkouts && recentWorkouts.length > 0 ? (
-        <div className="px-5">
-          <div className="flex items-center justify-between mb-3 px-1">
-            <h2 className="text-stone-200 font-semibold text-[15px] tracking-tight">
-              Son Antrenmanlar
-            </h2>
-            <Link
-              href="/history"
-              className="text-accent-400 hover:text-accent-300 text-[13px] font-medium transition-colors"
-            >
-              Tümü →
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {recentWorkouts.map(workout => (
-              <Link
-                key={workout.id}
-                href={`/workout/${workout.id}`}
-                className="group flex items-center gap-3 bg-stone-900/60 rounded-xl border border-stone-800/80 px-4 py-3.5 hover:border-stone-700 hover:bg-stone-900 transition-all active:scale-[0.99]"
-              >
-                <div className="h-9 w-9 rounded-lg bg-stone-800 flex items-center justify-center shrink-0">
-                  <Calendar size={15} className="text-stone-400" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-stone-100 font-medium text-[14px] truncate">
-                    {workout.name ?? 'Antrenman'}
-                  </p>
-                  <p className="text-[11px] text-stone-500 mt-0.5">
-                    {formatDate(workout.started_at)} ·{' '}
-                    <span className="tnum">
-                      {formatDuration(workout.started_at, workout.finished_at)}
-                    </span>
-                  </p>
-                </div>
-                <ChevronRight
-                  size={16}
-                  className="text-stone-600 group-hover:text-stone-400 transition-colors shrink-0"
-                />
-              </Link>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="px-5">
-          <div className="text-center py-10 px-4 rounded-2xl border border-dashed border-stone-800">
-            <p className="text-stone-500 text-sm">
+      <div className="flex flex-col gap-2">
+        {recentWorkouts.length === 0 ? (
+          <div className="text-center py-10 px-4 rounded-2xl bg-surface-dim shadow-[inset_0_0_0_0.5px_var(--color-border)]">
+            <p className="text-fg-tertiary text-sm">
               Henüz antrenman yok. İlkini başlatmaya ne dersin?
             </p>
           </div>
+        ) : (
+          recentWorkouts.map(w => {
+            const muscle = workoutMuscleGlyph(w.name)
+            const setCount = recentCountMap[w.id] ?? 0
+            return (
+              <Link
+                key={w.id}
+                href={`/workout/${w.id}`}
+                className="block"
+              >
+                <Card
+                  padding={12}
+                  className="flex items-center gap-3 transition-transform active:scale-[0.99]"
+                >
+                  <GlyphTile name={muscle} size={44} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-semibold text-fg tracking-[-0.01em] truncate">
+                      {w.name ?? 'Antrenman'}
+                    </div>
+                    <div className="text-[12px] text-fg-tertiary mt-0.5 flex items-center gap-1.5 tnum">
+                      <span>{formatDate(w.started_at)}</span>
+                      <span className="opacity-40">·</span>
+                      <span>{setCount} set</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-fg-quaternary shrink-0" />
+                </Card>
+              </Link>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+function UnauthedSplash() {
+  return (
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-6 gap-10">
+      <div className="text-center space-y-3">
+        <div className="h-16 w-16 rounded-2xl bg-accent-600 mx-auto flex items-center justify-center shadow-[0_8px_24px_-8px_var(--color-accent-950)]">
+          <Dumbbell size={28} className="text-white" strokeWidth={2.2} />
         </div>
-      )}
+        <h1 className="text-3xl font-semibold text-fg tracking-tight">Workout Tracker</h1>
+        <p className="text-fg-tertiary text-[15px]">
+          Antrenmanlarını sade ve hızlı tut.
+        </p>
+      </div>
+      <div className="flex flex-col gap-2.5 w-full max-w-sm">
+        <Link
+          href="/login"
+          className="flex items-center justify-center h-13 rounded-[14px] bg-accent-600 hover:opacity-95 text-white font-semibold text-[15px] transition-all active:scale-[0.98] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12),0_6px_16px_-4px_var(--color-accent-950)]"
+        >
+          Giriş Yap
+        </Link>
+        <Link
+          href="/signup"
+          className="flex items-center justify-center h-13 rounded-[14px] bg-surface-2 text-fg font-semibold text-[15px] transition-all active:scale-[0.98] shadow-[inset_0_0_0_0.5px_var(--color-border)]"
+        >
+          Hesap Oluştur
+        </Link>
+      </div>
     </div>
   )
 }

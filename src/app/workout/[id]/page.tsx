@@ -1,16 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Clock, Dumbbell, Pencil, BarChart3 } from 'lucide-react'
+import { ArrowLeft, Pencil } from 'lucide-react'
 import { formatDate, formatDuration } from '@/lib/utils'
-import type { WorkoutExerciseGroup, WorkoutSet } from '@/types'
+import type { WorkoutExerciseGroup, WorkoutSet, MuscleGroup } from '@/types'
 import { WorkoutExportButton } from './export-button'
+import { Card } from '@/components/ui/card'
+import { Eyebrow } from '@/components/ui/eyebrow'
+import { BigNum } from '@/components/ui/big-num'
+import { GlyphTile } from '@/components/glyphs/glyph'
+import { exerciseGlyph } from '@/lib/glyph-map'
 
 export const dynamic = 'force-dynamic'
 
 interface PageProps {
   params: Promise<{ id: string }>
 }
+
+const RIR_COLORS = ['#dc2626', '#ea580c', '#d97706', '#a3a341', '#65a342', '#16a34a']
+const rirColor = (r: number | null) => RIR_COLORS[r ?? 3] ?? '#65a342'
 
 export default async function WorkoutDetailPage({ params }: PageProps) {
   const { id } = await params
@@ -46,130 +54,161 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   }
 
   const totalVolume = (sets ?? []).reduce(
-    (acc, s) => acc + s.weight_kg * (s.reps ?? 0),
+    (acc, s) => acc + Number(s.weight_kg) * (s.reps ?? 0),
     0
   )
 
   return (
-    <div className="min-h-screen bg-stone-950 pb-32">
+    <div className="min-h-screen bg-bg flex flex-col pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-stone-950/90 backdrop-blur-md border-b border-stone-900">
-        <div className="flex items-center gap-2 px-4 py-3">
+      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+        <div className="flex items-center gap-2.5">
           <Link
             href="/history"
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+            aria-label="Geri"
+            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={18} />
           </Link>
           <div className="flex-1 min-w-0">
-            <h1 className="text-stone-50 font-semibold text-[15px] tracking-tight truncate">
+            <Eyebrow>Antrenman</Eyebrow>
+            <h1 className="text-fg font-semibold text-[16px] tracking-[-0.01em] truncate">
               {workout.name ?? 'Antrenman'}
             </h1>
-            <p className="text-[11px] text-stone-500 mt-0.5">
-              {formatDate(workout.started_at)}
-            </p>
           </div>
           <Link
             href={`/workout/${id}/edit`}
-            className="h-9 w-9 flex items-center justify-center rounded-xl bg-stone-900 text-stone-400 border border-stone-800/80 hover:bg-stone-800 hover:text-stone-200 transition-colors"
+            aria-label="Düzenle"
+            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
           >
-            <Pencil size={14} strokeWidth={2.2} />
+            <Pencil size={15} />
           </Link>
           <WorkoutExportButton workoutId={id} workoutName={workout.name} />
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2.5 px-4 py-5">
-        <StatCard
-          icon={<Clock size={14} />}
-          label="Süre"
-          value={formatDuration(workout.started_at, workout.finished_at)}
-        />
-        <StatCard
-          icon={<Dumbbell size={14} />}
-          label="Egzersiz"
-          value={String(groups.length)}
-        />
-        <StatCard
-          icon={<BarChart3 size={14} />}
-          label="Hacim"
-          value={`${totalVolume.toLocaleString('tr-TR')}`}
-          unit="kg"
-        />
-      </div>
+      <div className="flex-1 px-3.5 flex flex-col">
+        {/* Date subline */}
+        <div className="text-[12px] text-fg-tertiary mb-3 px-1 tracking-[-0.005em] tnum">
+          {formatDate(workout.started_at)}
+        </div>
 
-      {/* Exercise groups */}
-      <div className="px-4 space-y-3">
-        {groups.map(group => (
-          <div
-            key={group.exercise_order}
-            className="bg-stone-900/60 rounded-2xl border border-stone-800/80 overflow-hidden"
-          >
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-stone-800/70">
-              <span className="text-xl shrink-0">{group.exercise.icon}</span>
-              <div className="min-w-0 flex-1">
-                <p className="text-stone-50 font-medium text-[14px] truncate">
-                  {group.exercise.name}
-                </p>
-                <p className="text-[11px] text-stone-500 mt-0.5">
-                  {group.sets.length} set · {group.exercise.equipment}
-                </p>
-              </div>
-            </div>
-            <div className="divide-y divide-stone-800/60">
-              {group.sets.map(set => (
-                <div key={set.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="w-5 text-center text-[12px] font-semibold text-stone-500 tnum shrink-0">
-                    {set.set_type === 'warmup' ? 'W' : set.set_number}
-                  </span>
-                  <span className="flex-1 text-stone-100 tnum text-[14px]">
-                    <span className="font-semibold">{set.weight_kg}</span>
-                    <span className="text-stone-500 text-[11px] ml-0.5">kg</span>
-                    <span className="text-stone-600 mx-1.5">×</span>
-                    <span className="font-semibold">{set.reps}</span>
-                  </span>
-                  {set.rir !== null && (
-                    <span className="text-[10px] font-medium bg-stone-800/80 text-stone-400 px-1.5 py-0.5 rounded">
-                      RIR {set.rir}
-                    </span>
-                  )}
-                  <span className="text-[11px] text-stone-600 tnum w-14 text-right">
-                    {set.weight_kg * (set.reps ?? 0)} kg
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2 mb-3.5">
+          <Card padding={12} className="flex flex-col gap-1">
+            <Eyebrow>Süre</Eyebrow>
+            <BigNum
+              value={formatDuration(workout.started_at, workout.finished_at)}
+              size={24}
+            />
+          </Card>
+          <Card padding={12} className="flex flex-col gap-1">
+            <Eyebrow>Egzersiz</Eyebrow>
+            <BigNum value={groups.length} size={24} />
+          </Card>
+          <Card padding={12} className="flex flex-col gap-1">
+            <Eyebrow>Hacim</Eyebrow>
+            <BigNum
+              value={(totalVolume / 1000).toFixed(1)}
+              unit="t"
+              size={24}
+            />
+          </Card>
+        </div>
+
+        {/* Per-exercise detail blocks */}
+        <div className="flex flex-col gap-2.5">
+          {groups.map(group => (
+            <DetailBlock key={group.exercise_order} group={group} />
+          ))}
+        </div>
       </div>
     </div>
   )
 }
 
-function StatCard({
-  icon,
-  label,
-  value,
-  unit,
-}: {
-  icon: React.ReactNode
-  label: string
-  value: string
-  unit?: string
-}) {
+function DetailBlock({ group }: { group: WorkoutExerciseGroup }) {
+  const mg = group.exercise.muscle_group as MuscleGroup | undefined
+  const blockVol = group.sets.reduce(
+    (a, s) => a + Number(s.weight_kg) * (s.reps ?? 0),
+    0
+  )
+  const glyph = exerciseGlyph(group.exercise.name, group.exercise.equipment)
+
   return (
-    <div className="bg-stone-900/60 rounded-2xl border border-stone-800/80 p-3.5 text-center">
-      <div className="flex items-center justify-center text-stone-500 mb-1.5">
-        {icon}
+    <Card padding={14}>
+      <div className="flex items-center gap-3 mb-3">
+        <GlyphTile name={glyph} size={44} />
+        <div className="flex-1 min-w-0">
+          <div className="text-[15px] font-semibold text-fg tracking-[-0.01em] truncate">
+            {group.exercise.name}
+          </div>
+          <div className="text-[11.5px] text-fg-tertiary mt-px tnum">
+            {mg?.name ?? ''} · {group.sets.length} set ·{' '}
+            {blockVol.toLocaleString('tr-TR')}kg hacim
+          </div>
+        </div>
       </div>
-      <p className="text-stone-50 font-semibold text-[18px] tnum tracking-tight leading-none">
-        {value}
-        {unit && <span className="text-stone-500 text-[11px] ml-0.5 font-normal">{unit}</span>}
-      </p>
-      <p className="text-[10px] text-stone-500 mt-1.5 uppercase tracking-wider font-medium">
-        {label}
-      </p>
+
+      <div className="flex flex-col">
+        {group.sets.map((s, i) => (
+          <div
+            key={s.id}
+            className="grid items-center gap-3 py-2"
+            style={{
+              gridTemplateColumns: '20px 1fr auto auto',
+              borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border)',
+            }}
+          >
+            <div className="text-[10.5px] font-bold text-fg-quaternary tnum tracking-[0.04em]">
+              {String(i + 1).padStart(2, '0')}
+            </div>
+            <div className="text-[14px] font-semibold text-fg tnum tracking-[-0.005em]">
+              {s.weight_kg}
+              <span className="text-[11px] text-fg-tertiary font-medium">kg</span>
+              <span className="mx-1.5 text-fg-quaternary">×</span>
+              {s.reps}
+              <span className="text-[11px] text-fg-tertiary font-medium"> rep</span>
+            </div>
+            <SetTrack reps={s.reps ?? 0} />
+            {s.rir !== null ? (
+              <div
+                style={{
+                  background: `${rirColor(s.rir)}22`,
+                  color: rirColor(s.rir),
+                }}
+                className="h-5 px-1.5 rounded-full inline-flex items-center text-[9.5px] font-bold tracking-[0.04em]"
+              >
+                R{s.rir}
+              </div>
+            ) : (
+              <div />
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function SetTrack({ reps, max = 12 }: { reps: number; max?: number }) {
+  return (
+    <div className="flex items-center gap-[1.5px]">
+      {Array.from({ length: max }).map((_, i) => {
+        const active = i < reps
+        return (
+          <div
+            key={i}
+            style={{
+              width: 3,
+              height: active ? 14 : 6,
+              opacity: active ? 1 - i * 0.04 : 1,
+              background: active ? 'var(--color-accent-500)' : 'var(--color-surface-3)',
+            }}
+            className="rounded-[1px]"
+          />
+        )
+      })}
     </div>
   )
 }
