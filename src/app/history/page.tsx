@@ -105,7 +105,7 @@ export default async function HistoryPage() {
         ) : (
           <>
             <p className="text-[11px] text-fg-quaternary text-center px-2">
-              İpucu — Bir antrenmanı kalıcı olarak silmek için sağa kaydır
+              İpucu — Bir antrenmanı kalıcı olarak silmek için sola kaydır
             </p>
             <HistoryList
               groups={groups}

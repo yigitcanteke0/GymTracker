@@ -13,8 +13,8 @@ interface SwipeRowProps {
 }
 
 /**
- * Sağa kaydırınca sol kenardan kırmızı çöp kovası ortaya çıkar.
- * Sola geri kaydırınca veya gövdeye dokununca kapanır.
+ * Sola kaydırınca sağ kenardan kırmızı çöp kovası ortaya çıkar (iOS pattern).
+ * Sağa geri kaydırınca veya gövdeye dokununca kapanır.
  * Çöp kovasına bir kere dokunmak `onDelete`'i tetikler.
  *
  * Dikey scroll kazanır (touch-action: pan-y): kullanıcı yukarı/aşağı
@@ -26,6 +26,7 @@ export function SwipeRow({
   revealWidth = 96,
   className,
 }: SwipeRowProps) {
+  // Negatif değer = sola kaydırılmış. Range: [-revealWidth*1.4, 0]
   const [offset, setOffset] = useState(0)
   const [opened, setOpened] = useState(false)
   const [animating, setAnimating] = useState(false)
@@ -51,9 +52,7 @@ export function SwipeRow({
     const dy = e.clientY - startY.current
 
     if (!lockedH.current) {
-      // Dead zone: az hareket tetiklemez
       if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return
-      // Dikey hareket daha baskın → drag'i iptal et (scroll kazansın)
       if (Math.abs(dy) > Math.abs(dx)) {
         dragging.current = false
         return
@@ -65,8 +64,9 @@ export function SwipeRow({
     }
 
     moved.current = true
-    const base = opened ? revealWidth : 0
-    const next = Math.max(0, Math.min(revealWidth * 1.4, base + dx))
+    const base = opened ? -revealWidth : 0
+    // Negatif offset = sola kaydırılmış. Sağa "overshoot" izin verme.
+    const next = Math.max(-revealWidth * 1.4, Math.min(0, base + dx))
     setOffset(next)
   }
 
@@ -76,8 +76,8 @@ export function SwipeRow({
     setAnimating(true)
     if (!lockedH.current) return
 
-    if (offset > revealWidth * 0.5) {
-      setOffset(revealWidth)
+    if (offset < -revealWidth * 0.5) {
+      setOffset(-revealWidth)
       setOpened(true)
     } else {
       setOffset(0)
@@ -86,14 +86,12 @@ export function SwipeRow({
   }
 
   const onClickCapture = (e: React.MouseEvent<HTMLDivElement>) => {
-    // Drag oldu → tıklamayı yutup içeri (Link vb.) ulaşmasını engelle
     if (moved.current) {
       e.preventDefault()
       e.stopPropagation()
       moved.current = false
       return
     }
-    // Açıkken gövdeye tıklamak → kapat, navigasyona izin verme
     if (opened) {
       e.preventDefault()
       e.stopPropagation()
@@ -103,22 +101,22 @@ export function SwipeRow({
     }
   }
 
-  const revealOpacity = Math.min(1, offset / (revealWidth * 0.6))
-  const iconScale = 0.85 + Math.min(0.15, offset / (revealWidth * 4))
+  const exposed = Math.abs(offset)
+  const revealOpacity = Math.min(1, exposed / (revealWidth * 0.6))
+  const iconScale = 0.85 + Math.min(0.15, exposed / (revealWidth * 4))
 
   return (
     <div className={cn('relative overflow-hidden rounded-[18px]', className)}>
-      {/* Sol kenardan açılan kırmızı sil alanı */}
+      {/* Sağ kenardan açılan kırmızı sil alanı */}
       <button
         type="button"
         onClick={() => {
-          // Hızlı kapanış görseli — parent zaten satırı kaldıracak
           setOpened(false)
           setOffset(0)
           onDelete()
         }}
         aria-label="Antrenmanı sil"
-        className="absolute inset-y-0 left-0 flex items-center justify-center bg-red-600 text-white"
+        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-600 text-white"
         style={{ width: revealWidth, opacity: revealOpacity }}
       >
         <Trash2
