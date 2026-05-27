@@ -7,6 +7,8 @@ import { Eyebrow } from '@/components/ui/eyebrow'
 import { BigNum } from '@/components/ui/big-num'
 import { Glyph, GlyphTile } from '@/components/glyphs/glyph'
 import { workoutMuscleGlyph } from '@/lib/glyph-map'
+import { getOrAutoCloseActiveWorkout } from '@/lib/active-workout'
+import { ActiveWorkoutBanner } from '@/components/workout/active-workout-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +23,18 @@ export default async function DashboardPage() {
     return <UnauthedSplash />
   }
 
-  // Recent (filter empty workouts)
+  // Aktif (devam eden) antrenman + 2 saatlik auto-close
+  const activeWorkout = await getOrAutoCloseActiveWorkout(supabase, user.id)
+  let activeSetCount = 0
+  if (activeWorkout) {
+    const { count } = await supabase
+      .from('workout_sets')
+      .select('id', { count: 'exact', head: true })
+      .eq('workout_id', activeWorkout.id)
+    activeSetCount = count ?? 0
+  }
+
+  // Recent (bitmiş, 0 setli olanları gizle)
   const { data: recentRaw } = await supabase
     .from('workouts')
     .select('*')
@@ -48,7 +61,7 @@ export default async function DashboardPage() {
     .filter(w => (recentCountMap[w.id] ?? 0) > 0)
     .slice(0, 5)
 
-  // Week stats
+  // Hafta istatistikleri
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
   const { data: weekSets } = await supabase
     .from('workout_sets')
@@ -60,12 +73,10 @@ export default async function DashboardPage() {
     0
   )
 
-  // Distinct workout days this week
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  // Monday-based week index
   const monday = new Date(today)
-  const dayOfWeek = (today.getDay() + 6) % 7 // Mon=0..Sun=6
+  const dayOfWeek = (today.getDay() + 6) % 7
   monday.setDate(today.getDate() - dayOfWeek)
 
   const weekDayActive = [false, false, false, false, false, false, false]
@@ -83,10 +94,12 @@ export default async function DashboardPage() {
   }
   const weekWorkoutCount = weekWorkoutDates.size
 
-  // Greeting
   const now = new Date()
   const dayName = new Intl.DateTimeFormat('tr-TR', { weekday: 'long' }).format(now)
-  const dayNumber = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' }).format(now)
+  const dayNumber = new Intl.DateTimeFormat('tr-TR', {
+    day: 'numeric',
+    month: 'short',
+  }).format(now)
   const greeting = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} · ${dayNumber}`
 
   return (
@@ -107,7 +120,6 @@ export default async function DashboardPage() {
         padding={0}
         className="relative overflow-hidden bg-[linear-gradient(135deg,var(--color-accent-950)_0%,var(--color-surface)_60%)]"
       >
-        {/* decorative grain */}
         <div
           className="absolute inset-0 opacity-40 pointer-events-none"
           style={{
@@ -115,7 +127,6 @@ export default async function DashboardPage() {
               'radial-gradient(circle at 20% 30%, rgb(31 90 151 / 0.15), transparent 50%)',
           }}
         />
-        {/* corner glyph */}
         <div
           className="absolute -right-3.5 -bottom-3.5 text-accent-900 opacity-60 pointer-events-none"
           style={{ transform: 'rotate(-12deg)' }}
@@ -142,7 +153,6 @@ export default async function DashboardPage() {
             />
           </div>
 
-          {/* Week dots */}
           <div className="flex gap-1.5 mt-0.5">
             {DAY_LABELS.map((d, i) => {
               const done = weekDayActive[i]
@@ -163,25 +173,34 @@ export default async function DashboardPage() {
         </div>
       </Card>
 
-      {/* Primary CTA */}
-      <Link
-        href="/workout/active"
-        prefetch
-        className="relative overflow-hidden h-[76px] rounded-[18px] flex items-center gap-3.5 px-[18px] bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_8px_24px_-8px_var(--color-accent-950),0_1px_2px_rgb(0_0_0_/_0.4)] transition-transform active:scale-[0.99]"
-      >
-        <div className="w-[50px] h-[50px] rounded-[14px] bg-black/20 flex items-center justify-center shadow-[inset_0_0_0_0.5px_rgb(255_255_255_/_0.15)]">
-          <Plus size={26} strokeWidth={2.5} />
-        </div>
-        <div className="flex-1 text-left">
-          <Eyebrow className="!text-white/70">Yeni</Eyebrow>
-          <div className="text-[19px] font-semibold tracking-[-0.015em] mt-0.5">
-            Antrenman Başlat
+      {/* Aktif antrenman banner VEYA primary CTA */}
+      {activeWorkout ? (
+        <ActiveWorkoutBanner
+          workoutId={activeWorkout.id}
+          workoutName={activeWorkout.name}
+          startedAt={activeWorkout.started_at}
+          setCount={activeSetCount}
+        />
+      ) : (
+        <Link
+          href="/workout/active"
+          prefetch
+          className="relative overflow-hidden h-[76px] rounded-[18px] flex items-center gap-3.5 px-[18px] bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_8px_24px_-8px_var(--color-accent-950),0_1px_2px_rgb(0_0_0_/_0.4)] transition-transform active:scale-[0.99]"
+        >
+          <div className="w-[50px] h-[50px] rounded-[14px] bg-black/20 flex items-center justify-center shadow-[inset_0_0_0_0.5px_rgb(255_255_255_/_0.15)]">
+            <Plus size={26} strokeWidth={2.5} />
           </div>
-        </div>
-        <ChevronRight className="opacity-70" />
-      </Link>
+          <div className="flex-1 text-left">
+            <Eyebrow className="!text-white/70">Yeni</Eyebrow>
+            <div className="text-[19px] font-semibold tracking-[-0.015em] mt-0.5">
+              Antrenman Başlat
+            </div>
+          </div>
+          <ChevronRight className="opacity-70" />
+        </Link>
+      )}
 
-      {/* Recent workouts */}
+      {/* Son antrenmanlar */}
       <div className="px-1 pt-1 flex items-center justify-between">
         <Eyebrow>Son Antrenmanlar</Eyebrow>
         <Link
@@ -204,11 +223,7 @@ export default async function DashboardPage() {
             const muscle = workoutMuscleGlyph(w.name)
             const setCount = recentCountMap[w.id] ?? 0
             return (
-              <Link
-                key={w.id}
-                href={`/workout/${w.id}`}
-                className="block"
-              >
+              <Link key={w.id} href={`/workout/${w.id}`} className="block">
                 <Card
                   padding={12}
                   className="flex items-center gap-3 transition-transform active:scale-[0.99]"

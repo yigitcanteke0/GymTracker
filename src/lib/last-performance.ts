@@ -18,16 +18,26 @@ export type LastPerformanceMap = Record<string, LastPerformance>
 /**
  * Her egzersiz için, kullanıcının en son yaptığı antrenmandaki setleri döner.
  * En çok 500 set fetch edilir (RLS ile sadece auth.uid()'ye ait olanlar gelir).
+ *
+ * `excludeWorkoutId` verilirse o antrenmana ait setler atlanır — aktif/devam eden
+ * bir antrenmanda "önceki performans" göstermek için kullanılır.
  */
 export async function fetchLastPerformanceMap(
   supabase: SupabaseClient,
-  limit = 500
+  options: { excludeWorkoutId?: string | null; limit?: number } = {}
 ): Promise<LastPerformanceMap> {
-  const { data } = await supabase
+  const { excludeWorkoutId, limit = 500 } = options
+  let query = supabase
     .from('workout_sets')
     .select('exercise_id, workout_id, set_number, weight_kg, reps, rir, completed_at')
     .order('completed_at', { ascending: false })
     .limit(limit)
+
+  if (excludeWorkoutId) {
+    query = query.neq('workout_id', excludeWorkoutId)
+  }
+
+  const { data } = await query
 
   const map: LastPerformanceMap = {}
 

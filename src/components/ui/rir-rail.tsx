@@ -33,7 +33,7 @@ export function RirRail({ value, onChange, h = 50 }: RirRailProps) {
                 : undefined,
             }}
             className={cn(
-              'rounded-lg text-[14px] font-bold tnum transition-all active:scale-[0.94] select-none',
+              'rounded-lg text-[14px] font-bold tnum leading-none flex items-center justify-center transition-all active:scale-[0.94] select-none',
               on ? 'text-white' : 'text-fg-tertiary hover:text-fg-secondary'
             )}
           >

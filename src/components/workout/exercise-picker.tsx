@@ -20,9 +20,15 @@ import { exerciseGlyph } from '@/lib/glyph-map'
 interface ExercisePickerProps {
   onSelect: (exercise: Exercise, previousSets?: PreviousSet[]) => void
   onClose: () => void
+  /** Aktif antrenmanın id'si — "önceki performans" hesaplanırken hariç tutulur. */
+  excludeWorkoutId?: string | null
 }
 
-export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
+export function ExercisePicker({
+  onSelect,
+  onClose,
+  excludeWorkoutId,
+}: ExercisePickerProps) {
   const [query, setQuery] = useState('')
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [muscleGroups, setMuscleGroups] = useState<MuscleGroup[]>([])
@@ -41,14 +47,14 @@ export function ExercisePicker({ onSelect, onClose }: ExercisePickerProps) {
         .order('is_favorite', { ascending: false })
         .order('name'),
       supabase.from('muscle_groups').select('*').order('name'),
-      fetchLastPerformanceMap(supabase),
+      fetchLastPerformanceMap(supabase, { excludeWorkoutId }),
     ])
 
     setExercises(ex ?? [])
     setMuscleGroups(mg ?? [])
     setLastPerfMap(perfMap)
     setLoading(false)
-  }, [supabase])
+  }, [supabase, excludeWorkoutId])
 
   useEffect(() => {
     fetchData()

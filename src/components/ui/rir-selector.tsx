@@ -31,7 +31,7 @@ export function RirSelector({ value, onChange, compact = false }: RirSelectorPro
                   : undefined,
               }}
               className={cn(
-                'rounded-[10px] font-bold tnum transition-all active:scale-[0.96] select-none',
+                'rounded-[10px] font-bold tnum leading-none flex items-center justify-center transition-all active:scale-[0.96] select-none',
                 compact ? 'h-9 text-sm' : 'h-11 text-base',
                 on
                   ? 'text-white'

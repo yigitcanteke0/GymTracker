@@ -4,8 +4,19 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, X, Check, Pencil, Timer } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { ActiveExercise, ActiveSet, Exercise, SetType } from '@/types'
-import type { PreviousSet } from '@/lib/last-performance'
+import type {
+  ActiveExercise,
+  ActiveSet,
+  Exercise,
+  SetType,
+  WorkoutSet,
+} from '@/types'
+import {
+  fetchLastPerformanceMap,
+  type LastPerformanceMap,
+  type PreviousSet,
+} from '@/lib/last-performance'
+import { getOrAutoCloseActiveWorkout } from '@/lib/active-workout'
 import { ExerciseCard } from '@/components/workout/exercise-card'
 import { ExercisePicker } from '@/components/workout/exercise-picker'
 import { SetComposer } from '@/components/workout/set-composer'
@@ -18,10 +29,13 @@ export default function ActiveWorkoutPage() {
   const supabase = createClient()
   const startedAt = useRef(new Date().toISOString())
 
+  const [bootstrapped, setBootstrapped] = useState(false)
+  const [workoutId, setWorkoutId] = useState<string | null>(null)
   const [workoutName, setWorkoutName] = useState('')
   const [exercises, setExercises] = useState<ActiveExercise[]>([])
   const [previousSetsMap, setPreviousSetsMap] = useState<Record<string, PreviousSet[]>>({})
   const [activeBlock, setActiveBlock] = useState(0)
+  const [activeSetOverride, setActiveSetOverride] = useState<number | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -30,12 +44,95 @@ export default function ActiveWorkoutPage() {
   const [restRemain, setRestRemain] = useState(0)
   const [editingName, setEditingName] = useState(false)
 
+  // ── Mount: resume or fresh ────────────────────────────────────────
+  useEffect(() => {
+    let mounted = true
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/login')
+        return
+      }
+
+      const active = await getOrAutoCloseActiveWorkout(supabase, user.id)
+      if (!mounted) return
+
+      let activeId: string | null = null
+
+      if (active) {
+        activeId = active.id
+        setWorkoutId(active.id)
+        setWorkoutName(active.name ?? '')
+        startedAt.current = active.started_at
+
+        // Resume sets
+        const { data: sets } = await supabase
+          .from('workout_sets')
+          .select('*, exercise:exercises(*, muscle_group:muscle_groups(*))')
+          .eq('workout_id', active.id)
+          .order('exercise_order')
+          .order('set_number')
+
+        if (!mounted) return
+
+        const groupMap = new Map<number, ActiveExercise>()
+        for (const s of (sets ?? []) as WorkoutSet[]) {
+          let group = groupMap.get(s.exercise_order)
+          if (!group) {
+            group = {
+              exercise: s.exercise as Exercise,
+              exercise_order: s.exercise_order,
+              sets: [],
+            }
+            groupMap.set(s.exercise_order, group)
+          }
+          group.sets.push({
+            id: s.id,
+            exercise_order: s.exercise_order,
+            set_number: s.set_number,
+            weight_kg: Number(s.weight_kg),
+            reps: s.reps ?? 0,
+            rir: s.rir ?? 2,
+            set_type: s.set_type,
+            completed: true,
+          })
+        }
+        const restored = Array.from(groupMap.values()).sort(
+          (a, b) => a.exercise_order - b.exercise_order
+        )
+        setExercises(restored)
+        // Active block: last exercise
+        if (restored.length > 0) setActiveBlock(restored.length - 1)
+      }
+
+      // Pre-fetch previous-performance map (excluding current workout if any)
+      const perfMap: LastPerformanceMap = await fetchLastPerformanceMap(supabase, {
+        excludeWorkoutId: activeId,
+      })
+      if (!mounted) return
+      const prevMap: Record<string, PreviousSet[]> = {}
+      for (const eid in perfMap) {
+        prevMap[eid] = perfMap[eid].sets
+      }
+      setPreviousSetsMap(prevMap)
+
+      setBootstrapped(true)
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [supabase, router])
+
   // ── Clocks ────────────────────────────────────────────────────────
   useEffect(() => {
-    const start = new Date(startedAt.current).getTime()
-    const id = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 1000)), 1000)
+    const tick = () => {
+      const start = new Date(startedAt.current).getTime()
+      setElapsed(Math.floor((Date.now() - start) / 1000))
+    }
+    tick()
+    const id = setInterval(tick, 1000)
     return () => clearInterval(id)
-  }, [])
+  }, [bootstrapped])
 
   useEffect(() => {
     if (!resting) return
@@ -51,20 +148,59 @@ export default function ActiveWorkoutPage() {
     return () => clearInterval(id)
   }, [resting])
 
-  // ── Derived state ─────────────────────────────────────────────────
+  // ── Debounced name persistence ────────────────────────────────────
+  useEffect(() => {
+    if (!workoutId) return
+    const t = setTimeout(() => {
+      supabase
+        .from('workouts')
+        .update({ name: workoutName || null })
+        .eq('id', workoutId)
+    }, 500)
+    return () => clearTimeout(t)
+  }, [workoutName, workoutId, supabase])
+
+  // ── Derived ───────────────────────────────────────────────────────
   const totalSets = exercises.reduce((a, e) => a + e.sets.length, 0)
-  const doneSets = exercises.reduce((a, e) => a + e.sets.filter(s => s.completed).length, 0)
+  const doneSets = exercises.reduce(
+    (a, e) => a + e.sets.filter(s => s.completed).length,
+    0
+  )
 
   const activeBlockData = exercises[activeBlock]
   const activeSetIdx = useMemo(() => {
     if (!activeBlockData) return -1
+    if (activeSetOverride !== null && activeBlockData.sets[activeSetOverride]) {
+      return activeSetOverride
+    }
     const idx = activeBlockData.sets.findIndex(s => !s.completed)
     return idx === -1 ? activeBlockData.sets.length - 1 : idx
-  }, [activeBlockData])
+  }, [activeBlockData, activeSetOverride])
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  const ensureWorkout = useCallback(async (): Promise<string | null> => {
+    if (workoutId) return workoutId
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    const { data: newWo, error } = await supabase
+      .from('workouts')
+      .insert({
+        user_id: user.id,
+        name: workoutName || null,
+        started_at: startedAt.current,
+      })
+      .select()
+      .single()
+    if (error || !newWo) return null
+    setWorkoutId(newWo.id)
+    return newWo.id
+  }, [workoutId, workoutName, supabase])
 
   // ── Handlers ──────────────────────────────────────────────────────
   const handleSelectExercise = useCallback(
-    (exercise: Exercise, previousSets?: PreviousSet[]) => {
+    async (exercise: Exercise, previousSets?: PreviousSet[]) => {
+      await ensureWorkout()
+
       if (previousSets && previousSets.length > 0) {
         setPreviousSetsMap(prev => ({ ...prev, [exercise.id]: previousSets }))
       }
@@ -89,10 +225,11 @@ export default function ActiveWorkoutPage() {
         }
         return [...prev, newExercise]
       })
-      setActiveBlock(exercises.length) // new exercise becomes active
+      setActiveBlock(exercises.length)
+      setActiveSetOverride(null)
       setShowPicker(false)
     },
-    [exercises.length]
+    [exercises.length, ensureWorkout]
   )
 
   const updateActiveSet = useCallback(
@@ -112,9 +249,7 @@ export default function ActiveWorkoutPage() {
 
   const handleSetClick = useCallback((blockIdx: number, setIdx: number) => {
     setActiveBlock(blockIdx)
-    // tapping a different set: leave activeSetIdx derivation, but
-    // override by un-completing nothing — we just refocus the block.
-    void setIdx
+    setActiveSetOverride(setIdx)
   }, [])
 
   const handleAddSet = useCallback((blockIdx: number) => {
@@ -139,78 +274,118 @@ export default function ActiveWorkoutPage() {
         }
       })
     )
+    setActiveSetOverride(null)
   }, [])
 
-  const completeActiveSet = useCallback(() => {
+  const completeActiveSet = useCallback(async () => {
     if (!activeBlockData || activeSetIdx < 0) return
+
+    const woId = await ensureWorkout()
+    if (!woId) return
+
+    const block = activeBlockData
+    const set = block.sets[activeSetIdx]
+    if (!set) return
+
+    const payload = {
+      workout_id: woId,
+      exercise_id: block.exercise.id,
+      exercise_order: block.exercise_order,
+      set_number: set.set_number,
+      weight_kg: set.weight_kg,
+      reps: set.reps,
+      rir: set.rir,
+      set_type: set.set_type,
+    }
+
+    const wasNotCompleted = !set.completed
+
+    // Optimistic local mark
     setExercises(prev =>
       prev.map((e, bi) => {
         if (bi !== activeBlock) return e
         return {
           ...e,
-          sets: e.sets.map((s, i) => (i === activeSetIdx ? { ...s, completed: true } : s)),
+          sets: e.sets.map((s, i) =>
+            i === activeSetIdx ? { ...s, completed: true } : s
+          ),
         }
       })
     )
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate?.(20)
-    }
-    setRestRemain(90)
-    setResting(true)
 
-    // Advance to next exercise if this was the last set of the block
-    const block = exercises[activeBlock]
-    if (block) {
+    if (set.id) {
+      await supabase.from('workout_sets').update(payload).eq('id', set.id)
+    } else {
+      const { data: inserted } = await supabase
+        .from('workout_sets')
+        .insert(payload)
+        .select()
+        .single()
+      if (inserted) {
+        setExercises(prev =>
+          prev.map((e, bi) => {
+            if (bi !== activeBlock) return e
+            return {
+              ...e,
+              sets: e.sets.map((s, i) =>
+                i === activeSetIdx ? { ...s, id: inserted.id } : s
+              ),
+            }
+          })
+        )
+      }
+    }
+
+    if (wasNotCompleted) {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate?.(20)
+      }
+      setRestRemain(90)
+      setResting(true)
+    }
+
+    // Clear manual override so derivation picks next incomplete
+    setActiveSetOverride(null)
+
+    // Auto-advance to next block if this was last set
+    if (wasNotCompleted && block) {
       const allDone = block.sets.every((s, i) => i === activeSetIdx || s.completed)
       if (allDone && activeBlock < exercises.length - 1) {
         setTimeout(() => setActiveBlock(b => b + 1), 100)
       }
     }
-  }, [activeBlockData, activeBlock, activeSetIdx, exercises])
+  }, [
+    activeBlockData,
+    activeSetIdx,
+    activeBlock,
+    exercises.length,
+    ensureWorkout,
+    supabase,
+  ])
 
   const handleFinish = async () => {
     setSaving(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/login')
+      const completedTotal = exercises.reduce(
+        (a, e) => a + e.sets.filter(s => s.completed).length,
+        0
+      )
+
+      if (!workoutId || completedTotal === 0) {
+        // Boş antrenman: discard
+        if (workoutId) {
+          await supabase.from('workouts').delete().eq('id', workoutId)
+        }
+        router.push('/')
         return
       }
 
-      const { data: workout, error: wError } = await supabase
+      await supabase
         .from('workouts')
-        .insert({
-          user_id: user.id,
-          name: workoutName || null,
-          started_at: startedAt.current,
-          finished_at: new Date().toISOString(),
-        })
-        .select()
-        .single()
+        .update({ finished_at: new Date().toISOString() })
+        .eq('id', workoutId)
 
-      if (wError || !workout) throw wError
-
-      const allSets = exercises.flatMap(eg =>
-        eg.sets
-          .filter(s => s.completed)
-          .map(s => ({
-            workout_id: workout.id,
-            exercise_id: eg.exercise.id,
-            exercise_order: eg.exercise_order,
-            set_number: s.set_number,
-            weight_kg: s.weight_kg,
-            reps: s.reps,
-            rir: s.rir,
-            set_type: s.set_type,
-          }))
-      )
-
-      if (allSets.length > 0) {
-        const { error: sError } = await supabase.from('workout_sets').insert(allSets)
-        if (sError) throw sError
-      }
-
-      router.push(`/workout/${workout.id}`)
+      router.push(`/workout/${workoutId}`)
     } catch (err) {
       console.error(err)
       setSaving(false)
@@ -218,11 +393,20 @@ export default function ActiveWorkoutPage() {
   }
 
   // ── Render ────────────────────────────────────────────────────────
+  if (!bootstrapped) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-surface-3 border-t-accent-500 animate-spin" />
+      </div>
+    )
+  }
+
   if (showPicker) {
     return (
       <ExercisePicker
         onSelect={handleSelectExercise}
         onClose={() => setShowPicker(false)}
+        excludeWorkoutId={workoutId}
       />
     )
   }

@@ -39,7 +39,7 @@ export function Stepper({
   }
 
   const stepBtnBase =
-    'shrink-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center font-semibold transition-transform active:scale-[0.94] select-none tnum'
+    'shrink-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center font-semibold leading-none transition-transform active:scale-[0.94] select-none tnum'
 
   return (
     <div className={cn('flex items-center gap-1.5', className)}>
@@ -62,22 +62,27 @@ export function Stepper({
 
       <div
         style={{ height: h }}
-        className="flex-1 min-w-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-baseline justify-center gap-1 px-2 relative"
+        className="flex-1 min-w-0 rounded-xl bg-surface-3 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center px-2 relative"
       >
-        <span
-          style={{ fontSize: h >= 54 ? 28 : 24, lineHeight: 1 }}
-          className={cn(
-            'font-semibold tracking-[-0.02em] tnum',
-            accent ? 'text-accent-300' : 'text-fg'
-          )}
-        >
-          {value}
-        </span>
-        {unit && (
-          <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-fg-tertiary">
-            {unit}
+        <div className="inline-flex items-baseline gap-1 leading-none">
+          <span
+            style={{ fontSize: h >= 54 ? 28 : 24, lineHeight: 1 }}
+            className={cn(
+              'font-semibold tracking-[-0.02em] tnum',
+              accent ? 'text-accent-300' : 'text-fg'
+            )}
+          >
+            {value}
           </span>
-        )}
+          {unit && (
+            <span
+              style={{ lineHeight: 1 }}
+              className="text-[10px] font-semibold uppercase tracking-[0.08em] text-fg-tertiary"
+            >
+              {unit}
+            </span>
+          )}
+        </div>
       </div>
 
       <button
