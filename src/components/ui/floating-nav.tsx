@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, History, Dumbbell, Plus, LogOut } from 'lucide-react'
+import { Home, History, Dumbbell, Plus, LogOut, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +30,7 @@ export function FloatingNav() {
     router.prefetch('/workout/active')
     router.prefetch('/history')
     router.prefetch('/exercises')
+    router.prefetch('/profile')
   }, [authed, router])
 
   if (!authed) return null
@@ -57,6 +58,7 @@ export function FloatingNav() {
       icon: <Dumbbell size={20} />,
       label: 'Egzersizler',
     },
+    { id: 'profile', href: '/profile', icon: <User size={20} />, label: 'Profil' },
   ]
 
   const isActive = (href: string) => pathname === href

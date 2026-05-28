@@ -9,6 +9,7 @@ import {
   LineChart,
   CloudOff,
   ArrowRight,
+  Pencil,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
@@ -123,9 +124,18 @@ export default async function DashboardPage() {
       {/* Header greeting */}
       <div className="px-1 pt-2 pb-1">
         <Eyebrow tone="accent">{greeting}</Eyebrow>
-        <h1 className="text-[26px] font-semibold text-fg tracking-[-0.02em] mt-1">
+        <Link
+          href="/profile"
+          aria-label="Profilini düzenle"
+          className="group mt-1 inline-flex items-baseline gap-2 text-[26px] font-semibold text-fg tracking-[-0.02em] transition-colors hover:text-fg-secondary"
+        >
           {helloText}
-        </h1>
+          <Pencil
+            size={15}
+            className="text-fg-quaternary opacity-0 group-hover:opacity-100 transition-opacity"
+            strokeWidth={2.2}
+          />
+        </Link>
         <p className="text-[14.5px] text-fg-tertiary mt-0.5 tracking-[-0.005em]">
           Bugün hangi kası çalıştıracaksın?
         </p>
