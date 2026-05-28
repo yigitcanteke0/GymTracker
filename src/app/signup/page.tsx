@@ -77,7 +77,7 @@ export default function SignupPage() {
                 required
                 autoComplete="given-name"
                 className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
-                placeholder="Yiğitcan"
+                placeholder="Ad"
               />
             </div>
             <div className="space-y-1.5">
@@ -88,7 +88,7 @@ export default function SignupPage() {
                 onChange={e => setLastName(e.target.value)}
                 autoComplete="family-name"
                 className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
-                placeholder="Teke"
+                placeholder="Soyad"
               />
             </div>
           </div>
