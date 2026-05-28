@@ -1,6 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { Plus, Flame, ChevronRight, Dumbbell } from 'lucide-react'
+import {
+  Plus,
+  Flame,
+  ChevronRight,
+  Dumbbell,
+  Zap,
+  LineChart,
+  CloudOff,
+  ArrowRight,
+} from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/eyebrow'
@@ -254,29 +263,154 @@ export default async function DashboardPage() {
 
 function UnauthedSplash() {
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center px-6 gap-10">
-      <div className="text-center space-y-3">
-        <div className="h-16 w-16 rounded-2xl bg-accent-600 mx-auto flex items-center justify-center shadow-[0_8px_24px_-8px_var(--color-accent-950)]">
-          <Dumbbell size={28} className="text-white" strokeWidth={2.2} />
+    <div className="min-h-screen bg-bg flex flex-col">
+      {/* Hero radial gradient backdrop */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 top-0 h-[420px] pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(80% 60% at 50% 0%, rgb(0 56 118 / 0.35) 0%, transparent 70%)',
+        }}
+      />
+
+      <div className="relative flex-1 flex flex-col px-5 pt-14 pb-8 mx-auto w-full max-w-md">
+        {/* Imprint */}
+        <div className="flex items-center gap-2 mb-7 animate-fade-up">
+          <div className="h-1 w-6 rounded-full bg-accent-500" />
+          <Eyebrow tone="accent">Bir Yiğitcan Teke uygulaması</Eyebrow>
         </div>
-        <h1 className="text-3xl font-semibold text-fg tracking-tight">Workout Tracker</h1>
-        <p className="text-fg-tertiary text-[15px]">
-          Antrenmanlarını sade ve hızlı tut.
-        </p>
+
+        {/* Hero */}
+        <div className="space-y-3 animate-fade-up">
+          <div className="inline-flex items-center gap-2.5">
+            <div className="h-11 w-11 rounded-[14px] bg-accent-600 flex items-center justify-center shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_6px_16px_-4px_var(--color-accent-950)]">
+              <Dumbbell size={20} className="text-white" strokeWidth={2.4} />
+            </div>
+            <span className="text-fg font-semibold text-[20px] tracking-[-0.015em]">
+              GymTracker
+            </span>
+          </div>
+          <h1 className="text-fg font-semibold text-[40px] leading-[1.05] tracking-[-0.03em] pt-2">
+            Antrenmanını
+            <br />
+            <span className="text-accent-300">kayıt et, gelişimini gör.</span>
+          </h1>
+          <p className="text-fg-tertiary text-[15px] leading-relaxed max-w-[34ch] pt-1">
+            Set, tekrar, RIR ve ağırlığı — salonda tek elinle, terli parmakla,
+            saniyeler içinde gir. Geçmiş, tek dokunuşla yanında.
+          </p>
+        </div>
+
+        {/* Decorative glyph hero card */}
+        <Card
+          padding={0}
+          className="relative overflow-hidden mt-8 animate-fade-up bg-[linear-gradient(135deg,var(--color-accent-950)_0%,var(--color-surface)_70%)]"
+        >
+          <div
+            aria-hidden
+            className="absolute inset-0 opacity-40 pointer-events-none"
+            style={{
+              backgroundImage:
+                'radial-gradient(circle at 80% 10%, rgb(31 90 151 / 0.25), transparent 50%)',
+            }}
+          />
+          <div className="relative p-5">
+            <div className="grid grid-cols-3 gap-3 place-items-center">
+              <GlyphTile name="chest" size={54} />
+              <GlyphTile name="back" size={54} />
+              <GlyphTile name="shoulder" size={54} />
+              <GlyphTile name="leg" size={54} />
+              <GlyphTile name="arm" size={54} />
+              <GlyphTile name="core" size={54} />
+            </div>
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-fg-tertiary">
+                Altı temel kas grubu
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          </div>
+        </Card>
+
+        {/* Features */}
+        <div className="mt-8 space-y-2.5 animate-fade-up">
+          <FeatureRow
+            icon={<Zap size={16} strokeWidth={2.2} />}
+            title="Hızlı veri girişi"
+            desc="Klavye açılmadan büyük +/− tuşlarıyla seti saniyede gir."
+          />
+          <FeatureRow
+            icon={<LineChart size={16} strokeWidth={2.2} />}
+            title="Geçmişten ders al"
+            desc="Her egzersizin önceki performansını anında gör."
+          />
+          <FeatureRow
+            icon={<CloudOff size={16} strokeWidth={2.2} />}
+            title="Çevrimdışı dayanıklı"
+            desc="Bağlantı kesilse de set girişi durmaz; bağlanınca otomatik senkron."
+          />
+        </div>
+
+        {/* CTAs */}
+        <div className="mt-9 space-y-2.5 animate-fade-up">
+          <Link
+            href="/signup"
+            className="group relative overflow-hidden flex items-center gap-3 h-[60px] rounded-[16px] px-5 bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white font-semibold text-[15px] tracking-[-0.005em] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.18),0_8px_24px_-8px_var(--color-accent-950),0_1px_2px_rgb(0_0_0_/_0.4)] transition-transform active:scale-[0.99]"
+          >
+            <span className="flex-1">Hesap Oluştur</span>
+            <ArrowRight
+              size={18}
+              strokeWidth={2.4}
+              className="transition-transform group-hover:translate-x-0.5"
+            />
+          </Link>
+          <Link
+            href="/login"
+            className="flex items-center justify-center h-12 rounded-[14px] bg-surface-2 text-fg-secondary font-semibold text-[14px] shadow-[inset_0_0_0_0.5px_var(--color-border)] transition-all active:scale-[0.98]"
+          >
+            Zaten hesabım var · Giriş Yap
+          </Link>
+        </div>
+
+        {/* Signature footer */}
+        <div className="mt-auto pt-12">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <Eyebrow>Tasarım & Geliştirme</Eyebrow>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <p className="text-center text-fg font-semibold text-[18px] tracking-[-0.01em] mt-3">
+            Yiğitcan Teke
+          </p>
+        </div>
       </div>
-      <div className="flex flex-col gap-2.5 w-full max-w-sm">
-        <Link
-          href="/login"
-          className="flex items-center justify-center h-13 rounded-[14px] bg-accent-600 hover:opacity-95 text-white font-semibold text-[15px] transition-all active:scale-[0.98] shadow-[inset_0_1px_0_rgb(255_255_255_/_0.12),0_6px_16px_-4px_var(--color-accent-950)]"
-        >
-          Giriş Yap
-        </Link>
-        <Link
-          href="/signup"
-          className="flex items-center justify-center h-13 rounded-[14px] bg-surface-2 text-fg font-semibold text-[15px] transition-all active:scale-[0.98] shadow-[inset_0_0_0_0.5px_var(--color-border)]"
-        >
-          Hesap Oluştur
-        </Link>
+    </div>
+  )
+}
+
+function FeatureRow({
+  icon,
+  title,
+  desc,
+}: {
+  icon: React.ReactNode
+  title: string
+  desc: string
+}) {
+  return (
+    <div className="flex items-start gap-3 p-3.5 rounded-[14px] bg-surface-dim shadow-[inset_0_0_0_0.5px_var(--color-border)]">
+      <div className="w-9 h-9 rounded-[10px] bg-accent-soft text-accent-300 shadow-[inset_0_0_0_0.5px_var(--color-accent-border)] flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-fg font-semibold text-[14px] tracking-[-0.005em]">
+          {title}
+        </p>
+        <p className="text-fg-tertiary text-[12.5px] mt-0.5 leading-snug">
+          {desc}
+        </p>
       </div>
     </div>
   )
