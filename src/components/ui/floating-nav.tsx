@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, History, Dumbbell, Plus, LogOut, User } from 'lucide-react'
+import { Home, History, Dumbbell, Plus, LogOut, User, Menu, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 
@@ -43,22 +43,23 @@ export function FloatingNav() {
     router.refresh()
   }
 
+  // Sıralama yukarıdan aşağıya — dashboard FAB'a en yakın olsun
   const items: { href: string; icon: React.ReactNode; label: string; id: string }[] = [
-    { id: 'dashboard', href: '/', icon: <Home size={20} />, label: 'Ana Sayfa' },
-    {
-      id: 'active',
-      href: '/workout/active',
-      icon: <Plus size={20} strokeWidth={2.5} />,
-      label: 'Yeni Antrenman',
-    },
-    { id: 'history', href: '/history', icon: <History size={20} />, label: 'Geçmiş' },
+    { id: 'profile', href: '/profile', icon: <User size={20} />, label: 'Profil' },
     {
       id: 'exercises',
       href: '/exercises',
       icon: <Dumbbell size={20} />,
       label: 'Egzersizler',
     },
-    { id: 'profile', href: '/profile', icon: <User size={20} />, label: 'Profil' },
+    { id: 'history', href: '/history', icon: <History size={20} />, label: 'Geçmiş' },
+    {
+      id: 'active',
+      href: '/workout/active',
+      icon: <Plus size={20} strokeWidth={2.5} />,
+      label: 'Yeni Antrenman',
+    },
+    { id: 'dashboard', href: '/', icon: <Home size={20} />, label: 'Ana Sayfa' },
   ]
 
   const isActive = (href: string) => pathname === href
@@ -81,6 +82,18 @@ export function FloatingNav() {
         {/* Pill menu */}
         {open && (
           <div className="flex flex-col items-end gap-2 animate-fade-up">
+            <button
+              onClick={() => {
+                setOpen(false)
+                handleLogout()
+              }}
+              className="h-[46px] pl-1.5 pr-4 rounded-full inline-flex items-center gap-2.5 text-[13.5px] font-semibold tracking-[-0.005em] bg-surface-elevated text-fg-secondary hover:text-danger shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)] transition-all active:scale-[0.96]"
+            >
+              <div className="w-9 h-9 rounded-full bg-surface-3 flex items-center justify-center">
+                <LogOut size={20} />
+              </div>
+              Çıkış
+            </button>
             {items.map(item => {
               const active = isActive(item.href)
               return (
@@ -109,18 +122,6 @@ export function FloatingNav() {
                 </Link>
               )
             })}
-            <button
-              onClick={() => {
-                setOpen(false)
-                handleLogout()
-              }}
-              className="h-[46px] pl-1.5 pr-4 rounded-full inline-flex items-center gap-2.5 text-[13.5px] font-semibold tracking-[-0.005em] bg-surface-elevated text-fg-secondary hover:text-danger shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)] transition-all active:scale-[0.96]"
-            >
-              <div className="w-9 h-9 rounded-full bg-surface-3 flex items-center justify-center">
-                <LogOut size={20} />
-              </div>
-              Çıkış
-            </button>
           </div>
         )}
 
@@ -131,11 +132,15 @@ export function FloatingNav() {
           className={cn(
             'w-14 h-14 rounded-full flex items-center justify-center transition-all duration-200 ease-[cubic-bezier(.3,.7,.4,1)] active:scale-[0.92]',
             open
-              ? 'bg-surface-elevated text-fg rotate-45 shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)]'
+              ? 'bg-surface-elevated text-fg shadow-[0_8px_24px_rgb(0_0_0_/_0.5),inset_0_0_0_0.5px_var(--color-border)]'
               : 'bg-[linear-gradient(180deg,var(--color-accent-500),var(--color-accent-700))] text-white shadow-[0_8px_24px_-4px_var(--color-accent-950),inset_0_1px_0_rgb(255_255_255_/_0.18)]'
           )}
         >
-          <Plus size={22} strokeWidth={2.8} />
+          {open ? (
+            <X size={22} strokeWidth={2.5} />
+          ) : (
+            <Menu size={22} strokeWidth={2.5} />
+          )}
         </button>
       </div>
     </>
