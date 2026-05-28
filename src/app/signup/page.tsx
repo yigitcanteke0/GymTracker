@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button'
 import { Eyebrow } from '@/components/ui/eyebrow'
 
 export default function SignupPage() {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,9 +20,25 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
+    const fn = firstName.trim()
+    const ln = lastName.trim()
+    if (!fn) {
+      setError('Adınızı girin')
+      return
+    }
     setLoading(true)
     setError('')
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: fn,
+          last_name: ln,
+          full_name: `${fn} ${ln}`.trim(),
+        },
+      },
+    })
     if (error) {
       setError(error.message)
       setLoading(false)
@@ -48,6 +66,33 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={handleSignup} className="space-y-3.5">
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1.5">
+              <Eyebrow>Ad</Eyebrow>
+              <input
+                autoFocus
+                type="text"
+                value={firstName}
+                onChange={e => setFirstName(e.target.value)}
+                required
+                autoComplete="given-name"
+                className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
+                placeholder="Yiğitcan"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Eyebrow>Soyad</Eyebrow>
+              <input
+                type="text"
+                value={lastName}
+                onChange={e => setLastName(e.target.value)}
+                autoComplete="family-name"
+                className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
+                placeholder="Teke"
+              />
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Eyebrow>E-posta</Eyebrow>
             <input
@@ -55,6 +100,7 @@ export default function SignupPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              autoComplete="email"
               className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
               placeholder="sen@email.com"
             />
@@ -67,6 +113,7 @@ export default function SignupPage() {
               onChange={e => setPassword(e.target.value)}
               required
               minLength={6}
+              autoComplete="new-password"
               className="w-full h-12 bg-surface-2 text-fg rounded-[14px] px-4 shadow-[inset_0_0_0_0.5px_var(--color-border)] focus:shadow-[inset_0_0_0_1px_var(--color-accent-500)] outline-none placeholder:text-fg-tertiary transition-shadow text-[14px] font-medium tracking-[-0.005em]"
               placeholder="En az 6 karakter"
             />

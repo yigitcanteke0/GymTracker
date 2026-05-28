@@ -109,13 +109,22 @@ export default async function DashboardPage() {
   }).format(now)
   const greeting = `${dayName.charAt(0).toUpperCase() + dayName.slice(1)} · ${dayNumber}`
 
+  // İsim user_metadata'dan; yoksa email'in @ öncesi kısmı; yoksa null.
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>
+  const rawFirst =
+    (typeof meta.first_name === 'string' && meta.first_name) ||
+    (typeof meta.full_name === 'string' && meta.full_name.split(' ')[0]) ||
+    null
+  const firstName = rawFirst ? rawFirst.trim() : null
+  const helloText = firstName ? `Selam, ${firstName}.` : 'Selam.'
+
   return (
     <div className="px-4 pt-3 pb-32 flex flex-col gap-4">
       {/* Header greeting */}
       <div className="px-1 pt-2 pb-1">
         <Eyebrow tone="accent">{greeting}</Eyebrow>
         <h1 className="text-[26px] font-semibold text-fg tracking-[-0.02em] mt-1">
-          Selam.
+          {helloText}
         </h1>
         <p className="text-[14.5px] text-fg-tertiary mt-0.5 tracking-[-0.005em]">
           Bugün hangi kası çalıştıracaksın?
