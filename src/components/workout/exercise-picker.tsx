@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Search, X, Star, Clock, Timer } from 'lucide-react'
+import { Search, X, Star, Clock, Timer, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup } from '@/types'
 import { cn } from '@/lib/utils'
@@ -16,6 +16,7 @@ import { Eyebrow } from '@/components/ui/eyebrow'
 import { Chip } from '@/components/ui/chip'
 import { GlyphTile } from '@/components/glyphs/glyph'
 import { exerciseGlyph } from '@/lib/glyph-map'
+import { AddExerciseModal } from '@/app/exercises/add-exercise-modal'
 
 interface ExercisePickerProps {
   onSelect: (exercise: Exercise, previousSets?: PreviousSet[]) => void
@@ -35,6 +36,7 @@ export function ExercisePicker({
   const [lastPerfMap, setLastPerfMap] = useState<LastPerformanceMap>({})
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
 
   const supabase = createClient()
 
@@ -112,9 +114,9 @@ export function ExercisePicker({
         </button>
       </div>
 
-      {/* Search */}
-      <div className="px-3.5 pb-2.5">
-        <div className="h-11 rounded-[14px] bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center px-3 gap-2">
+      {/* Search + add */}
+      <div className="px-3.5 pb-2.5 flex items-center gap-2">
+        <div className="flex-1 h-11 rounded-[14px] bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center px-3 gap-2">
           <Search size={16} className="text-fg-tertiary shrink-0" />
           <input
             autoFocus
@@ -133,6 +135,13 @@ export function ExercisePicker({
             </button>
           )}
         </div>
+        <button
+          onClick={() => setShowAdd(true)}
+          aria-label="Yeni egzersiz ekle"
+          className="w-11 h-11 rounded-[14px] bg-accent-600 text-white shadow-[0_4px_12px_-4px_var(--color-accent-950),inset_0_1px_0_rgb(255_255_255_/_0.12)] flex items-center justify-center shrink-0 active:scale-[0.96] transition-transform"
+        >
+          <Plus size={18} strokeWidth={2.5} />
+        </button>
       </div>
 
       {/* Muscle group filter */}
@@ -206,6 +215,17 @@ export function ExercisePicker({
           </div>
         )}
       </div>
+
+      {showAdd && (
+        <AddExerciseModal
+          muscleGroups={muscleGroups}
+          onClose={() => setShowAdd(false)}
+          onSaved={() => {
+            setShowAdd(false)
+            fetchData()
+          }}
+        />
+      )}
     </div>
   )
 }
