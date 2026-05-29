@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import { FloatingNav } from "@/components/ui/floating-nav";
+import { FloatingBack } from "@/components/ui/floating-back";
 import { ConnectionIndicator } from "@/components/ui/connection-indicator";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import "./globals.css";
@@ -50,6 +51,7 @@ export default function RootLayout({
       <body className="min-h-full bg-bg text-fg antialiased">
         <ConnectionIndicator />
         {children}
+        <FloatingBack />
         <FloatingNav />
         <ServiceWorkerRegister />
       </body>

@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Star, Search } from 'lucide-react'
+import { Plus, Star, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup } from '@/types'
 import { cn } from '@/lib/utils'
@@ -58,13 +57,6 @@ export function ExercisesClient({
       {/* Header */}
       <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/"
-            aria-label="Geri"
-            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
-          >
-            <ArrowLeft size={18} />
-          </Link>
           <h1 className="flex-1 text-fg font-semibold text-[17px] tracking-[-0.01em]">
             Egzersizler
           </h1>

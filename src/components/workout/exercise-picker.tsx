@@ -101,7 +101,7 @@ export function ExercisePicker({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-bg animate-fade-up">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2.5 px-3.5 pt-3 pb-2.5">
+      <div className="flex items-center justify-between gap-2.5 px-3.5 pb-2.5 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
         <h2 className="text-[17px] font-semibold text-fg tracking-[-0.01em]">
           Egzersiz Seç
         </h2>

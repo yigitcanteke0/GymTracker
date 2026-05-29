@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, X, Save, Trash2, FileEdit } from 'lucide-react'
+import { Plus, Save, Trash2, FileEdit } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { ActiveExercise, ActiveSet, Exercise, SetType } from '@/types'
 import { ExerciseCard } from '@/components/workout/exercise-card'
@@ -164,13 +164,6 @@ export function EditWorkoutClient({
     <div className="flex flex-col min-h-screen bg-bg">
       <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => router.back()}
-            aria-label="Geri"
-            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
-          >
-            <X size={18} />
-          </button>
           <div className="flex-1 min-w-0">
             <Eyebrow tone="accent">Düzenleme</Eyebrow>
             <input
@@ -200,6 +193,20 @@ export function EditWorkoutClient({
               activeSetIdx={editing?.block === idx ? editing.setIdx : -1}
               onSetClick={(setIdx) => setEditing({ block: idx, setIdx })}
               onAddSet={() => handleAddSet(idx)}
+              onDeleteSet={(setIdx) => {
+                setExercises(prev =>
+                  prev.map((e, bi) => {
+                    if (bi !== idx) return e
+                    const filtered = e.sets
+                      .filter((_, si) => si !== setIdx)
+                      .map((s, si) => ({ ...s, set_number: si + 1 }))
+                    return { ...e, sets: filtered }
+                  })
+                )
+                if (editing?.block === idx && editing.setIdx === setIdx) {
+                  setEditing({ block: idx, setIdx: 0 })
+                }
+              }}
               onRemove={() => {
                 setExercises(prev =>
                   prev

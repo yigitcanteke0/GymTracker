@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Check, User } from 'lucide-react'
+import { Check, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { withRetry } from '@/lib/retry'
 import { Button } from '@/components/ui/button'
@@ -73,13 +73,6 @@ export function ProfileForm({
       {/* Header */}
       <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/"
-            aria-label="Geri"
-            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
-          >
-            <ArrowLeft size={18} />
-          </Link>
           <h1 className="flex-1 text-fg font-semibold text-[17px] tracking-[-0.01em]">
             Profil
           </h1>

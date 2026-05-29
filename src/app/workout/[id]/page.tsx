@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { formatDate, formatDuration } from '@/lib/utils'
 import type { WorkoutExerciseGroup, WorkoutSet, MuscleGroup } from '@/types'
 import { WorkoutExportButton } from './export-button'
@@ -64,13 +64,6 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
       {/* Header */}
       <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
-          <Link
-            href="/history"
-            aria-label="Geri"
-            className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
-          >
-            <ArrowLeft size={18} />
-          </Link>
           <div className="flex-1 min-w-0">
             <Eyebrow>Antrenman</Eyebrow>
             <h1 className="text-fg font-semibold text-[16px] tracking-[-0.01em] truncate">

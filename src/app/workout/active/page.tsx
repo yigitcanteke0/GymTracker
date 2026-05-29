@@ -428,6 +428,47 @@ export default function ActiveWorkoutPage() {
     setActiveSetOverride(setIdx)
   }, [])
 
+  const handleDeleteSet = useCallback(
+    (blockIdx: number, setIdx: number) => {
+      const ex = exercises[blockIdx]
+      const set = ex?.sets[setIdx]
+      if (!ex || !set) return
+
+      // Optimistic local remove
+      setExercises(prev =>
+        prev.map((e, bi) => {
+          if (bi !== blockIdx) return e
+          const filtered = e.sets
+            .filter((_, si) => si !== setIdx)
+            .map((s, si) => ({ ...s, set_number: si + 1 }))
+          return { ...e, sets: filtered }
+        })
+      )
+      if (activeSetOverride !== null && activeSetOverride === setIdx) {
+        setActiveSetOverride(null)
+      }
+
+      // DB delete only if it was already synced
+      if (set.id) {
+        withRetry(
+          () =>
+            unwrap(
+              supabase
+                .from('workout_sets')
+                .delete()
+                .eq('id', set.id!)
+                .select()
+                .maybeSingle()
+            ),
+          { retries: 3 }
+        ).catch(() => {
+          /* snapshot will preserve user intent until next online flush */
+        })
+      }
+    },
+    [exercises, activeSetOverride, supabase]
+  )
+
   const handleAddSet = useCallback((blockIdx: number) => {
     setExercises(prev =>
       prev.map((e, bi) => {
@@ -512,6 +553,38 @@ export default function ActiveWorkoutPage() {
       )
     }
   }, [activeBlockData, activeSetIdx, activeBlock, exercises.length, syncSet])
+
+  /**
+   * Close (X). If no completed sets, discard the workout: delete the DB row
+   * (if it was lazily created), clear the snapshot, then navigate. Background
+   * delete — UI doesn't wait for the network round-trip.
+   */
+  const handleClose = useCallback(() => {
+    const completedTotal = exercises.reduce(
+      (a, e) => a + e.sets.filter(s => s.completed).length,
+      0
+    )
+    if (completedTotal === 0) {
+      clearSnapshot()
+      const id = workoutId
+      if (id) {
+        // Fire-and-forget — auto-purge in active-workout.ts will catch any miss
+        withRetry(
+          () =>
+            unwrap(
+              supabase
+                .from('workouts')
+                .delete()
+                .eq('id', id)
+                .select()
+                .maybeSingle()
+            ),
+          { retries: 2 }
+        ).catch(() => {})
+      }
+    }
+    router.push('/')
+  }, [exercises, workoutId, router, supabase])
 
   const handleFinish = async () => {
     setSaving(true)
@@ -619,7 +692,7 @@ export default function ActiveWorkoutPage() {
       <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => router.push('/')}
+            onClick={handleClose}
             aria-label="Kapat"
             className="w-9 h-9 rounded-xl bg-surface-2 text-fg-secondary shadow-[inset_0_0_0_0.5px_var(--color-border)] flex items-center justify-center"
           >
@@ -710,6 +783,7 @@ export default function ActiveWorkoutPage() {
               activeSetIdx={idx === activeBlock ? activeSetIdx : -1}
               onSetClick={(setIdx) => handleSetClick(idx, setIdx)}
               onAddSet={() => handleAddSet(idx)}
+              onDeleteSet={(setIdx) => handleDeleteSet(idx, setIdx)}
             />
           ))
         )}
