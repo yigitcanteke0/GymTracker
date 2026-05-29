@@ -162,7 +162,7 @@ export function EditWorkoutClient({
 
   return (
     <div className="flex flex-col min-h-screen bg-bg">
-      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+      <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => router.back()}
@@ -251,7 +251,7 @@ export function EditWorkoutClient({
           </div>
         )}
 
-        <div className="px-3 pt-2 pb-3 flex flex-col gap-2 border-t border-[var(--color-border)]/60">
+        <div className="px-3 pt-2 flex flex-col gap-2 border-t border-[var(--color-border)]/60 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
           <div className="flex gap-2">
             <Button
               variant="secondary"

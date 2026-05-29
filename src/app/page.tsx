@@ -120,7 +120,7 @@ export default async function DashboardPage() {
   const helloText = firstName ? `Selam, ${firstName}.` : 'Selam.'
 
   return (
-    <div className="px-4 pt-3 pb-32 flex flex-col gap-4">
+    <div className="px-4 pb-32 flex flex-col gap-4 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)]">
       {/* Header greeting */}
       <div className="px-1 pt-2 pb-1">
         <Eyebrow tone="accent">{greeting}</Eyebrow>
@@ -293,7 +293,7 @@ function UnauthedSplash() {
         }}
       />
 
-      <div className="relative flex-1 flex flex-col px-5 pt-14 pb-8 mx-auto w-full max-w-md">
+      <div className="relative flex-1 flex flex-col px-5 pb-8 mx-auto w-full max-w-md pt-[calc(env(safe-area-inset-top,0px)+3.5rem)]">
         {/* Imprint */}
         <div className="flex items-center gap-2 mb-7 animate-fade-up">
           <div className="h-1 w-6 rounded-full bg-accent-500" />

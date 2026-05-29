@@ -29,7 +29,7 @@ export function ConnectionIndicator() {
 
   if (!online) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-amber-600/95 text-white px-4 py-1.5 text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-lg">
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-amber-600/95 text-white px-4 pb-1.5 pt-[calc(env(safe-area-inset-top,0px)+0.375rem)] text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-lg">
         <WifiOff size={13} strokeWidth={2.2} />
         <span>
           Bağlantı yok — değişiklikler bağlantı kurulunca senkronize olur
@@ -40,7 +40,7 @@ export function ConnectionIndicator() {
 
   if (showReconnect) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-success/95 text-white px-4 py-1.5 text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-lg animate-fade-up">
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-success/95 text-white px-4 pb-1.5 pt-[calc(env(safe-area-inset-top,0px)+0.375rem)] text-[12px] font-semibold flex items-center justify-center gap-1.5 shadow-lg animate-fade-up">
         <RefreshCcw size={13} strokeWidth={2.2} />
         <span>Yeniden bağlandı — senkronize ediliyor</span>
       </div>

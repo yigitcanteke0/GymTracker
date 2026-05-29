@@ -58,7 +58,7 @@ export function SetComposer({
         </div>
       )}
 
-      <div className="relative px-3 pt-2.5 pb-3.5 flex flex-col gap-2">
+      <div className="relative px-3 pt-2.5 flex flex-col gap-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.875rem)]">
         {/* Top strip: rest timer OR set context */}
         {resting ? (
           <div className="flex items-center justify-between px-1 pt-1">

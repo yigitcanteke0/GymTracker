@@ -76,7 +76,8 @@ export function FloatingNav() {
 
       <div
         className={cn(
-          'fixed bottom-7 right-4 z-[50] flex flex-col items-end gap-2.5'
+          'fixed right-4 z-[50] flex flex-col items-end gap-2.5',
+          'bottom-[calc(env(safe-area-inset-bottom,0px)+1.75rem)]'
         )}
       >
         {/* Pill menu */}

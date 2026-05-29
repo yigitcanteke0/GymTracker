@@ -62,7 +62,7 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   return (
     <div className="min-h-screen bg-bg flex flex-col pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+      <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
           <Link
             href="/history"

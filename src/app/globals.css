@@ -64,6 +64,21 @@
   font-feature-settings: "tnum";
 }
 
+/* Safe-area helpers — for iOS standalone (notch / Dynamic Island / home indicator).
+   Use sx-safe-* to ADD safe-area inset to existing padding, not replace it. */
+@utility sx-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+@utility sx-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@utility sx-top {
+  top: env(safe-area-inset-top, 0px);
+}
+@utility sx-bottom {
+  bottom: env(safe-area-inset-bottom, 0px);
+}
+
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;

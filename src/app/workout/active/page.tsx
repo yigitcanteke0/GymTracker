@@ -616,7 +616,7 @@ export default function ActiveWorkoutPage() {
   return (
     <div className="flex flex-col min-h-screen bg-bg">
       {/* Sticky header */}
-      <div className="sticky top-0 z-[8] px-3.5 pt-2.5 pb-3 bg-gradient-to-b from-bg via-bg/95 to-transparent">
+      <div className="sticky top-0 z-[8] px-3.5 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.625rem)] bg-gradient-to-b from-bg via-bg/95 to-transparent">
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => router.push('/')}
