@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { setVolumeKg } from '@/lib/weight'
+import { tryWithFallback } from '@/lib/safe-query'
 import { HistoryExportButton } from './export-button'
 import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/eyebrow'
@@ -18,12 +19,28 @@ export default async function HistoryPage() {
     .order('started_at', { ascending: false })
 
   const workoutIds = rawWorkouts?.map(w => w.id) ?? []
-  const { data: setRows } = workoutIds.length > 0
-    ? await supabase
-        .from('workout_sets')
-        .select('workout_id, weight_kg, weight_unit, reps')
-        .in('workout_id', workoutIds)
-    : { data: null }
+  // weight_unit kolonu yoksa (migration henüz çalıştırılmamış), fallback
+  // sürümü kolonsuz çeker — sayfa boş gözükmek yerine sayılarla dolu döner.
+  const setRows =
+    workoutIds.length > 0
+      ? await tryWithFallback<{
+          workout_id: string
+          weight_kg: number
+          weight_unit?: 'kg' | 'lbs'
+          reps: number | null
+        }>(
+          () =>
+            supabase
+              .from('workout_sets')
+              .select('workout_id, weight_kg, weight_unit, reps')
+              .in('workout_id', workoutIds),
+          () =>
+            supabase
+              .from('workout_sets')
+              .select('workout_id, weight_kg, reps')
+              .in('workout_id', workoutIds)
+        )
+      : null
 
   const countMap = (setRows ?? []).reduce<Record<string, number>>((acc, s) => {
     acc[s.workout_id] = (acc[s.workout_id] ?? 0) + 1

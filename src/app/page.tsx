@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { setVolumeKg } from '@/lib/weight'
+import { tryWithFallback } from '@/lib/safe-query'
 import Link from 'next/link'
 import {
   Plus,
@@ -35,9 +36,11 @@ export default async function DashboardPage() {
     return <UnauthedSplash />
   }
 
-  // Tüm sorguları paralel başlat — geçiş süresini ~5x → ~2x'e indirir
+  // Tüm sorguları paralel başlat — geçiş süresini ~5x → ~2x'e indirir.
+  // Hafta seti sorgusu weight_unit kolonuna referans verir; migration
+  // çalıştırılmamışsa fallback ile kolonsuz sürümü dener.
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString()
-  const [activeWorkout, recentResult, weekSetsResult] = await Promise.all([
+  const [activeWorkout, recentResult, weekSets] = await Promise.all([
     getOrAutoCloseActiveWorkout(supabase, user.id),
     supabase
       .from('workouts')
@@ -45,14 +48,26 @@ export default async function DashboardPage() {
       .not('finished_at', 'is', null)
       .order('started_at', { ascending: false })
       .limit(15),
-    supabase
-      .from('workout_sets')
-      .select('weight_kg, weight_unit, reps, workout:workouts!inner(started_at, user_id)')
-      .gte('workout.started_at', sevenDaysAgo),
+    tryWithFallback<{
+      weight_kg: number
+      weight_unit?: 'kg' | 'lbs'
+      reps: number | null
+      workout: { started_at?: string; user_id?: string } | null
+    }>(
+      () =>
+        supabase
+          .from('workout_sets')
+          .select('weight_kg, weight_unit, reps, workout:workouts!inner(started_at, user_id)')
+          .gte('workout.started_at', sevenDaysAgo),
+      () =>
+        supabase
+          .from('workout_sets')
+          .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
+          .gte('workout.started_at', sevenDaysAgo)
+    ),
   ])
 
   const recentRaw = recentResult.data
-  const weekSets = weekSetsResult.data
 
   // Aktif set sayısı + recent set sayıları → tek istek olarak paralel batch
   const recentIds = recentRaw?.map(w => w.id) ?? []
