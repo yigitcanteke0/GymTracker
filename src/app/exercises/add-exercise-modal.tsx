@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup, Equipment, WeightUnit } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Chip } from '@/components/ui/chip'
 import { Eyebrow } from '@/components/ui/eyebrow'
+import { KG_PER_LBS } from '@/lib/weight'
 import { cn } from '@/lib/utils'
 
 const ICONS = ['🏋️', '💪', '🔄', '⬆️', '⬇️', '↔️', '🦵', '🧘', '🏃', '⚙️', '🔨', '💀', '🤸']
@@ -23,6 +24,8 @@ const UNITS: { value: WeightUnit; label: string }[] = [
   { value: 'lbs', label: 'LBS' },
 ]
 
+type PastAction = 'leave' | 'relabel' | 'convert'
+
 interface AddExerciseModalProps {
   muscleGroups: MuscleGroup[]
   onClose: () => void
@@ -38,15 +41,39 @@ export function AddExerciseModal({
   exercise,
 }: AddExerciseModalProps) {
   const isEdit = !!exercise
+  const originalUnit = exercise?.weight_unit ?? 'kg'
+
   const [name, setName] = useState(exercise?.name ?? '')
   const [muscleGroupId, setMuscleGroupId] = useState(exercise?.muscle_group_id ?? '')
   const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell')
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>(exercise?.weight_unit ?? 'kg')
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(originalUnit)
   const [icon, setIcon] = useState(exercise?.icon ?? '🏋️')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  // Geçmiş set sayısı + ne yapılacağı (sadece edit modunda anlamlı)
+  const [pastSetsCount, setPastSetsCount] = useState<number | null>(null)
+  const [pastAction, setPastAction] = useState<PastAction>('leave')
+
   const supabase = createClient()
+
+  // Edit modunda mount'ta geçmiş set sayısını çek
+  useEffect(() => {
+    if (!exercise) return
+    let mounted = true
+    ;(async () => {
+      const { count } = await supabase
+        .from('workout_sets')
+        .select('id', { count: 'exact', head: true })
+        .eq('exercise_id', exercise.id)
+      if (mounted) setPastSetsCount(count ?? 0)
+    })()
+    return () => {
+      mounted = false
+    }
+  }, [exercise, supabase])
+
+  const unitChanged = isEdit && weightUnit !== originalUnit
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -82,9 +109,47 @@ export function AddExerciseModal({
     if (err) {
       setError(err.message)
       setSaving(false)
-    } else {
-      onSaved()
+      return
     }
+
+    // Geçmiş setler için isteğe bağlı toplu güncelleme
+    if (isEdit && unitChanged && (pastSetsCount ?? 0) > 0 && pastAction !== 'leave') {
+      try {
+        if (pastAction === 'relabel') {
+          // Sayıları olduğu gibi bırak, sadece weight_unit etiketini değiştir
+          await supabase
+            .from('workout_sets')
+            .update({ weight_unit: weightUnit })
+            .eq('exercise_id', exercise!.id)
+        } else if (pastAction === 'convert') {
+          // Sayıları da çevir: KG→LBS ya da LBS→KG
+          const factor = weightUnit === 'lbs' ? 1 / KG_PER_LBS : KG_PER_LBS
+          const { data: sets } = await supabase
+            .from('workout_sets')
+            .select('id, weight_kg')
+            .eq('exercise_id', exercise!.id)
+          if (sets) {
+            // Sırayla değil, paralel — RLS scope zaten kullanıcıya kilitli
+            await Promise.all(
+              sets.map(s =>
+                supabase
+                  .from('workout_sets')
+                  .update({
+                    weight_kg: Math.round(Number(s.weight_kg) * factor * 10) / 10,
+                    weight_unit: weightUnit,
+                  })
+                  .eq('id', s.id)
+              )
+            )
+          }
+        }
+      } catch (e) {
+        // Sessizce yut — egzersiz update'i yine de başarılı
+        console.error('Past sets bulk update failed:', e)
+      }
+    }
+
+    onSaved()
   }
 
   return (
@@ -188,10 +253,45 @@ export function AddExerciseModal({
             ))}
           </div>
           <p className="text-[11.5px] text-fg-tertiary px-1">
-            Bu egzersizin yeni setleri için varsayılan birim. Salondaki
-            makinenin gösterdiğiyle aynı tut.
+            Yeni setler için varsayılan birim.
           </p>
         </div>
+
+        {/* Geçmiş setler için toplu eylem — sadece edit modunda + birim değiştiyse */}
+        {isEdit && unitChanged && (pastSetsCount ?? 0) > 0 && (
+          <div className="space-y-2.5 p-3.5 rounded-[14px] bg-surface-dim shadow-[inset_0_0_0_0.5px_var(--color-border)]">
+            <div className="flex items-baseline justify-between">
+              <Eyebrow tone="accent">Geçmiş Setler</Eyebrow>
+              <span className="text-[11px] text-fg-tertiary tnum">
+                {pastSetsCount} set · şu an {originalUnit.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <PastActionRow
+                active={pastAction === 'leave'}
+                title={`Eski birimde kalsın (${originalUnit.toUpperCase()})`}
+                desc="Geçmiş veriye dokunma — yeni setler yeni birimi kullanır"
+                onClick={() => setPastAction('leave')}
+              />
+              <PastActionRow
+                active={pastAction === 'relabel'}
+                title={`Sadece ${weightUnit.toUpperCase()} olarak etiketle`}
+                desc="Sayılar aynı kalır, yalnızca birim değişir (yanlış birimde girdiysem)"
+                onClick={() => setPastAction('relabel')}
+              />
+              <PastActionRow
+                active={pastAction === 'convert'}
+                title={`${weightUnit.toUpperCase()}'ye çevir`}
+                desc={
+                  weightUnit === 'lbs'
+                    ? `Sayılar × ${(1 / KG_PER_LBS).toFixed(4)} ile dönüştürülür (gerçek fiziksel ağırlık aynı kalır)`
+                    : `Sayılar × ${KG_PER_LBS.toFixed(4)} ile dönüştürülür (gerçek fiziksel ağırlık aynı kalır)`
+                }
+                onClick={() => setPastAction('convert')}
+              />
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="text-[13px] px-3 py-2 rounded-lg bg-danger/10 text-danger shadow-[inset_0_0_0_0.5px_rgb(220_38_38_/_0.3)]">
@@ -210,5 +310,51 @@ export function AddExerciseModal({
         </Button>
       </div>
     </div>
+  )
+}
+
+function PastActionRow({
+  active,
+  title,
+  desc,
+  onClick,
+}: {
+  active: boolean
+  title: string
+  desc: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-start gap-2.5 text-left p-2.5 rounded-[10px] transition-all',
+        active
+          ? 'bg-accent-soft shadow-[inset_0_0_0_1px_var(--color-accent-500)]'
+          : 'bg-surface-2 shadow-[inset_0_0_0_0.5px_var(--color-border)] hover:bg-surface-3'
+      )}
+    >
+      <div
+        className={cn(
+          'w-4 h-4 mt-0.5 rounded-full shrink-0 flex items-center justify-center',
+          active
+            ? 'bg-accent-600 text-white'
+            : 'bg-transparent shadow-[inset_0_0_0_1.5px_var(--color-border-2)]'
+        )}
+      >
+        {active && <Check size={10} strokeWidth={3} />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p
+          className={cn(
+            'text-[13px] font-semibold tracking-[-0.005em]',
+            active ? 'text-accent-300' : 'text-fg'
+          )}
+        >
+          {title}
+        </p>
+        <p className="text-[11.5px] text-fg-tertiary mt-0.5 leading-snug">{desc}</p>
+      </div>
+    </button>
   )
 }
