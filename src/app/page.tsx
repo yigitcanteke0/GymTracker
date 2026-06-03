@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { setVolumeKg } from '@/lib/weight'
 import Link from 'next/link'
 import {
   Plus,
@@ -46,7 +47,7 @@ export default async function DashboardPage() {
       .limit(15),
     supabase
       .from('workout_sets')
-      .select('weight_kg, reps, workout:workouts!inner(started_at, user_id)')
+      .select('weight_kg, weight_unit, reps, workout:workouts!inner(started_at, user_id)')
       .gte('workout.started_at', sevenDaysAgo),
   ])
 
@@ -77,7 +78,8 @@ export default async function DashboardPage() {
     .slice(0, 5)
 
   const weekVolume = (weekSets ?? []).reduce(
-    (acc, s) => acc + Number(s.weight_kg) * (s.reps ?? 0),
+    (acc, s) =>
+      acc + setVolumeKg(Number(s.weight_kg), s.reps ?? 0, (s.weight_unit as 'kg' | 'lbs') ?? 'kg'),
     0
   )
 

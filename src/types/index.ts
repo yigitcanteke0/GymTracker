@@ -1,5 +1,6 @@
 export type Equipment = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'bodyweight' | 'other'
 export type SetType = 'warmup' | 'working' | 'dropset'
+export type WeightUnit = 'kg' | 'lbs'
 
 export interface MuscleGroup {
   id: string
@@ -17,6 +18,8 @@ export interface Exercise {
   muscle_group_id: string | null
   secondary_muscle_ids: string[]
   equipment: Equipment
+  /** Bu egzersizin tercih edilen ağırlık birimi — yeni set'ler için varsayılan. */
+  weight_unit: WeightUnit
   icon: string
   is_favorite: boolean
   instructions: string | null
@@ -40,7 +43,9 @@ export interface WorkoutSet {
   exercise_id: string
   exercise_order: number
   set_number: number
+  /** Kullanıcının girdiği ham ağırlık değeri. Birimi `weight_unit` belirler. */
   weight_kg: number
+  weight_unit: WeightUnit
   reps: number | null
   rir: number | null
   set_type: SetType
@@ -61,7 +66,9 @@ export interface ActiveSet {
   id?: string
   exercise_order: number
   set_number: number
+  /** Ham değer; birim weight_unit. */
   weight_kg: number
+  weight_unit: WeightUnit
   reps: number
   rir: number
   set_type: SetType

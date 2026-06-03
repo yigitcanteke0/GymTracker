@@ -7,6 +7,7 @@ import { Eyebrow } from '@/components/ui/eyebrow'
 import { Button } from '@/components/ui/button'
 import { Stepper } from '@/components/ui/stepper'
 import { RirRail } from '@/components/ui/rir-rail'
+import { cn } from '@/lib/utils'
 
 interface SetComposerProps {
   exerciseGroup: ActiveExercise
@@ -87,7 +88,11 @@ export function SetComposer({
               {prev ? (
                 <span className="text-[11px] text-fg-tertiary tnum">
                   <span className="text-fg-quaternary">önceki </span>
-                  {prev.weight_kg}×{prev.reps}
+                  {prev.weight_kg}
+                  <span className="uppercase text-[9px] mx-0.5">
+                    {prev.weight_unit}
+                  </span>
+                  ×{prev.reps}
                 </span>
               ) : (
                 <span className="text-[11px] text-fg-quaternary">—</span>
@@ -97,6 +102,7 @@ export function SetComposer({
                   onClick={() =>
                     onUpdate({
                       weight_kg: prev.weight_kg,
+                      weight_unit: prev.weight_unit,
                       reps: prev.reps,
                       rir: prev.rir ?? 2,
                     })
@@ -110,16 +116,35 @@ export function SetComposer({
           </div>
         )}
 
-        {/* KG */}
+        {/* Ağırlık */}
         <div className="flex flex-col gap-1">
-          <div className="px-1">
+          <div className="px-1 flex items-baseline justify-between">
             <Eyebrow>Ağırlık</Eyebrow>
+            {/* Birim toggle — egzersizin varsayılanı kalır ama bu set için
+                farklı bir birime geçilebilir (ör. aynı egzersizin bazı
+                makineleri kg, bazıları lbs) */}
+            <div className="inline-flex rounded-md bg-surface-3 p-0.5 shadow-[inset_0_0_0_0.5px_var(--color-border)]">
+              {(['kg', 'lbs'] as const).map(u => (
+                <button
+                  key={u}
+                  onClick={() => onUpdate({ weight_unit: u })}
+                  className={cn(
+                    'h-5 px-2 rounded text-[9.5px] font-bold uppercase tracking-[0.06em] transition-colors',
+                    set.weight_unit === u
+                      ? 'bg-accent-600 text-white'
+                      : 'text-fg-tertiary hover:text-fg-secondary'
+                  )}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
           </div>
           <Stepper
             value={set.weight_kg}
             step={2.5}
             quickStep={5}
-            unit="kg"
+            unit={set.weight_unit}
             h={50}
             accent
             onChange={(v) => onUpdate({ weight_kg: v })}

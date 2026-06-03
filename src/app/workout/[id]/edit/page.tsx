@@ -46,6 +46,7 @@ export default async function EditWorkoutPage({ params }: PageProps) {
       exercise_order: set.exercise_order,
       set_number: set.set_number,
       weight_kg: Number(set.weight_kg),
+      weight_unit: set.weight_unit ?? (set.exercise as Exercise).weight_unit ?? 'kg',
       reps: set.reps ?? 0,
       rir: set.rir ?? 2,
       set_type: set.set_type,

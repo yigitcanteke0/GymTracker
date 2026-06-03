@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Star, Search } from 'lucide-react'
+import { Plus, Star, Search, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Exercise, MuscleGroup } from '@/types'
 import { cn } from '@/lib/utils'
@@ -25,6 +25,7 @@ export function ExercisesClient({
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -128,6 +129,7 @@ export function ExercisesClient({
                       key={ex.id}
                       exercise={ex}
                       onToggleFav={() => toggleFavorite(ex)}
+                      onEdit={() => setEditingExercise(ex)}
                     />
                   ))}
                 </div>
@@ -143,6 +145,7 @@ export function ExercisesClient({
                   key={ex.id}
                   exercise={ex}
                   onToggleFav={() => toggleFavorite(ex)}
+                  onEdit={() => setEditingExercise(ex)}
                 />
               ))}
             </div>
@@ -160,6 +163,18 @@ export function ExercisesClient({
           }}
         />
       )}
+
+      {editingExercise && (
+        <AddExerciseModal
+          muscleGroups={muscleGroups}
+          exercise={editingExercise}
+          onClose={() => setEditingExercise(null)}
+          onSaved={() => {
+            setEditingExercise(null)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -167,29 +182,48 @@ export function ExercisesClient({
 function ExerciseRow({
   exercise,
   onToggleFav,
+  onEdit,
 }: {
   exercise: Exercise
   onToggleFav: () => void
+  onEdit: () => void
 }) {
   const mg = exercise.muscle_group as MuscleGroup | undefined
   const glyph = exerciseGlyph(exercise.name, exercise.equipment)
+  const editable = exercise.user_id !== null
 
   return (
-    <div
-      className="flex items-center gap-3 px-3 py-2.5 rounded-[14px] bg-surface shadow-[inset_0_0_0_0.5px_var(--color-border)]"
-    >
+    <div className="flex items-center gap-3 px-3 py-2.5 rounded-[14px] bg-surface shadow-[inset_0_0_0_0.5px_var(--color-border)]">
       <GlyphTile name={glyph} size={44} />
       <div className="flex-1 min-w-0">
         <div className="text-[14.5px] font-semibold text-fg tracking-[-0.01em] truncate">
           {exercise.name}
         </div>
-        <div className="text-[11.5px] text-fg-tertiary mt-px">
-          {mg?.name ?? '—'} · {exercise.equipment}
+        <div className="text-[11.5px] text-fg-tertiary mt-px inline-flex items-center gap-1.5">
+          <span>{mg?.name ?? '—'}</span>
+          <span className="opacity-50">·</span>
+          <span>{exercise.equipment}</span>
+          <span className="opacity-50">·</span>
+          <span className="uppercase font-semibold tracking-[0.04em] text-accent-400">
+            {exercise.weight_unit}
+          </span>
           {exercise.user_id === null && (
-            <span className="ml-1 text-fg-quaternary">· sistem</span>
+            <>
+              <span className="opacity-50">·</span>
+              <span className="text-fg-quaternary">sistem</span>
+            </>
           )}
         </div>
       </div>
+      {editable && (
+        <button
+          onClick={onEdit}
+          aria-label="Düzenle"
+          className="w-9 h-9 rounded-[10px] flex items-center justify-center text-fg-quaternary hover:text-fg-secondary hover:bg-surface-2 transition-all"
+        >
+          <Pencil size={14} strokeWidth={2} />
+        </button>
+      )}
       <button
         onClick={onToggleFav}
         aria-label={exercise.is_favorite ? 'Favoriden çıkar' : 'Favoriye ekle'}

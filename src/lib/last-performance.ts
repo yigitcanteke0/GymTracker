@@ -1,7 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { WeightUnit } from '@/types'
 
 export interface PreviousSet {
   weight_kg: number
+  weight_unit: WeightUnit
   reps: number
   rir: number | null
   set_number: number
@@ -29,7 +31,9 @@ export async function fetchLastPerformanceMap(
   const { excludeWorkoutId, limit = 500 } = options
   let query = supabase
     .from('workout_sets')
-    .select('exercise_id, workout_id, set_number, weight_kg, reps, rir, completed_at')
+    .select(
+      'exercise_id, workout_id, set_number, weight_kg, weight_unit, reps, rir, completed_at'
+    )
     .order('completed_at', { ascending: false })
     .limit(limit)
 
@@ -41,7 +45,6 @@ export async function fetchLastPerformanceMap(
 
   const map: LastPerformanceMap = {}
 
-  // completed_at DESC sırasında — bir egzersiz için ilk gördüğümüz workout, en son workout.
   for (const set of data ?? []) {
     const eid = set.exercise_id as string
     if (!eid) continue
@@ -52,10 +55,10 @@ export async function fetchLastPerformanceMap(
         sets: [],
       }
     }
-    // Sadece en son workout'un setlerini topla
     if (map[eid].workoutId === set.workout_id) {
       map[eid].sets.push({
         weight_kg: Number(set.weight_kg),
+        weight_unit: (set.weight_unit as WeightUnit) ?? 'kg',
         reps: set.reps ?? 0,
         rir: set.rir,
         set_number: set.set_number,
@@ -63,7 +66,6 @@ export async function fetchLastPerformanceMap(
     }
   }
 
-  // Her egzersizin setlerini set_number'a göre sırala
   for (const eid in map) {
     map[eid].sets.sort((a, b) => a.set_number - b.set_number)
   }
@@ -72,8 +74,7 @@ export async function fetchLastPerformanceMap(
 }
 
 /**
- * Tile/etiket için kompakt özet metni.
- * Örnekler: "10kg × 5", "3 × 10kg × 5", "3 set · 12kg × 6"
+ * Tile/etiket için kompakt özet metni — birimi taşır.
  */
 export function summarizeLastPerformance(perf: LastPerformance): string {
   const { sets } = perf
@@ -86,20 +87,18 @@ export function summarizeLastPerformance(perf: LastPerformance): string {
 
   if (allUniform) {
     if (sets.length === 1) {
-      return `${formatWeight(first.weight_kg)}kg × ${first.reps}`
+      return `${formatNum(first.weight_kg)}${first.weight_unit} × ${first.reps}`
     }
-    return `${sets.length} × ${formatWeight(first.weight_kg)}kg × ${first.reps}`
+    return `${sets.length} × ${formatNum(first.weight_kg)}${first.weight_unit} × ${first.reps}`
   }
 
-  // En ağır seti seç
   const heaviest = sets.reduce(
     (best, s) => (s.weight_kg > best.weight_kg ? s : best),
     sets[0]
   )
-  return `${sets.length} set · ${formatWeight(heaviest.weight_kg)}kg × ${heaviest.reps}`
+  return `${sets.length} set · ${formatNum(heaviest.weight_kg)}${heaviest.weight_unit} × ${heaviest.reps}`
 }
 
-function formatWeight(w: number): string {
-  // 10.0 → "10", 12.5 → "12.5"
+function formatNum(w: number): string {
   return Number.isInteger(w) ? String(w) : w.toString()
 }

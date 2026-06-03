@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { setVolumeKg } from '@/lib/weight'
 import { HistoryExportButton } from './export-button'
 import { Card } from '@/components/ui/card'
 import { Eyebrow } from '@/components/ui/eyebrow'
@@ -20,7 +21,7 @@ export default async function HistoryPage() {
   const { data: setRows } = workoutIds.length > 0
     ? await supabase
         .from('workout_sets')
-        .select('workout_id, weight_kg, reps')
+        .select('workout_id, weight_kg, weight_unit, reps')
         .in('workout_id', workoutIds)
     : { data: null }
 
@@ -30,7 +31,13 @@ export default async function HistoryPage() {
   }, {})
 
   const volumeMap = (setRows ?? []).reduce<Record<string, number>>((acc, s) => {
-    acc[s.workout_id] = (acc[s.workout_id] ?? 0) + Number(s.weight_kg) * (s.reps ?? 0)
+    acc[s.workout_id] =
+      (acc[s.workout_id] ?? 0) +
+      setVolumeKg(
+        Number(s.weight_kg),
+        s.reps ?? 0,
+        (s.weight_unit as 'kg' | 'lbs') ?? 'kg'
+      )
     return acc
   }, {})
 

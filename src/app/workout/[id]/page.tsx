@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { setVolumeKg } from '@/lib/weight'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Pencil } from 'lucide-react'
@@ -55,7 +56,9 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
   }
 
   const totalVolume = (sets ?? []).reduce(
-    (acc, s) => acc + Number(s.weight_kg) * (s.reps ?? 0),
+    (acc, s) =>
+      acc +
+      setVolumeKg(Number(s.weight_kg), s.reps ?? 0, s.weight_unit ?? 'kg'),
     0
   )
 
@@ -124,7 +127,8 @@ export default async function WorkoutDetailPage({ params }: PageProps) {
 function DetailBlock({ group }: { group: WorkoutExerciseGroup }) {
   const mg = group.exercise.muscle_group as MuscleGroup | undefined
   const blockVol = group.sets.reduce(
-    (a, s) => a + Number(s.weight_kg) * (s.reps ?? 0),
+    (a, s) =>
+      a + setVolumeKg(Number(s.weight_kg), s.reps ?? 0, s.weight_unit ?? 'kg'),
     0
   )
   const glyph = exerciseGlyph(group.exercise.name, group.exercise.equipment)
@@ -159,7 +163,9 @@ function DetailBlock({ group }: { group: WorkoutExerciseGroup }) {
             </div>
             <div className="text-[14px] font-semibold text-fg tnum tracking-[-0.005em]">
               {s.weight_kg}
-              <span className="text-[11px] text-fg-tertiary font-medium">kg</span>
+              <span className="text-[11px] text-fg-tertiary font-medium uppercase">
+                {s.weight_unit ?? 'kg'}
+              </span>
               <span className="mx-1.5 text-fg-quaternary">×</span>
               {s.reps}
               <span className="text-[11px] text-fg-tertiary font-medium"> rep</span>

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import type { MuscleGroup, Equipment } from '@/types'
+import type { Exercise, MuscleGroup, Equipment, WeightUnit } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Chip } from '@/components/ui/chip'
 import { Eyebrow } from '@/components/ui/eyebrow'
@@ -18,22 +18,31 @@ const EQUIPMENT: { value: Equipment; label: string }[] = [
   { value: 'bodyweight', label: 'Vücut Ağırlığı' },
   { value: 'other', label: 'Diğer' },
 ]
+const UNITS: { value: WeightUnit; label: string }[] = [
+  { value: 'kg', label: 'KG' },
+  { value: 'lbs', label: 'LBS' },
+]
 
 interface AddExerciseModalProps {
   muscleGroups: MuscleGroup[]
   onClose: () => void
   onSaved: () => void
+  /** Verilirse modal **edit** modunda açılır: alanlar dolu gelir, UPDATE atar. */
+  exercise?: Exercise
 }
 
 export function AddExerciseModal({
   muscleGroups,
   onClose,
   onSaved,
+  exercise,
 }: AddExerciseModalProps) {
-  const [name, setName] = useState('')
-  const [muscleGroupId, setMuscleGroupId] = useState('')
-  const [equipment, setEquipment] = useState<Equipment>('barbell')
-  const [icon, setIcon] = useState('🏋️')
+  const isEdit = !!exercise
+  const [name, setName] = useState(exercise?.name ?? '')
+  const [muscleGroupId, setMuscleGroupId] = useState(exercise?.muscle_group_id ?? '')
+  const [equipment, setEquipment] = useState<Equipment>(exercise?.equipment ?? 'barbell')
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>(exercise?.weight_unit ?? 'kg')
+  const [icon, setIcon] = useState(exercise?.icon ?? '🏋️')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -51,14 +60,24 @@ export function AddExerciseModal({
     } = await supabase.auth.getUser()
     if (!user) return
 
-    const { error: err } = await supabase.from('exercises').insert({
-      user_id: user.id,
+    const payload = {
       name: name.trim(),
       muscle_group_id: muscleGroupId || null,
       equipment,
+      weight_unit: weightUnit,
       icon,
-      is_favorite: false,
-    })
+    }
+
+    const { error: err } = isEdit
+      ? await supabase
+          .from('exercises')
+          .update(payload)
+          .eq('id', exercise!.id)
+      : await supabase.from('exercises').insert({
+          ...payload,
+          user_id: user.id,
+          is_favorite: false,
+        })
 
     if (err) {
       setError(err.message)
@@ -78,7 +97,7 @@ export function AddExerciseModal({
 
         <div className="flex items-center justify-between">
           <h2 className="text-fg font-semibold text-[17px] tracking-[-0.01em]">
-            Yeni Egzersiz
+            {isEdit ? 'Egzersizi Düzenle' : 'Yeni Egzersiz'}
           </h2>
           <button
             onClick={onClose}
@@ -154,6 +173,26 @@ export function AddExerciseModal({
           </div>
         </div>
 
+        {/* Birim — Weight unit */}
+        <div className="space-y-2">
+          <Eyebrow>Ağırlık Birimi</Eyebrow>
+          <div className="flex gap-1.5">
+            {UNITS.map(u => (
+              <Chip
+                key={u.value}
+                active={weightUnit === u.value}
+                onClick={() => setWeightUnit(u.value)}
+              >
+                {u.label}
+              </Chip>
+            ))}
+          </div>
+          <p className="text-[11.5px] text-fg-tertiary px-1">
+            Bu egzersizin yeni setleri için varsayılan birim. Salondaki
+            makinenin gösterdiğiyle aynı tut.
+          </p>
+        </div>
+
         {error && (
           <p className="text-[13px] px-3 py-2 rounded-lg bg-danger/10 text-danger shadow-[inset_0_0_0_0.5px_rgb(220_38_38_/_0.3)]">
             {error}
@@ -167,7 +206,7 @@ export function AddExerciseModal({
           onClick={handleSave}
           disabled={saving}
         >
-          {saving ? 'Kaydediliyor…' : 'Egzersiz Kaydet'}
+          {saving ? 'Kaydediliyor…' : isEdit ? 'Değişiklikleri Kaydet' : 'Egzersiz Kaydet'}
         </Button>
       </div>
     </div>

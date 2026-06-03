@@ -127,7 +127,10 @@ export function ExerciseCard({
                           {i + 1}
                         </span>
                         {p.weight_kg}
-                        <span className="text-[10px] mx-0.5">kg</span>×{p.reps}
+                        <span className="text-[10px] mx-0.5 uppercase">
+                          {p.weight_unit}
+                        </span>
+                        ×{p.reps}
                         {p.rir !== null && (
                           <span className="ml-1.5 opacity-70">R{p.rir}</span>
                         )}
@@ -188,8 +191,8 @@ export function ExerciseCard({
                     {s.completed || isActive ? (
                       <>
                         {s.weight_kg}
-                        <span className="text-[10px] text-fg-tertiary font-medium mx-0.5">
-                          kg
+                        <span className="text-[10px] text-fg-tertiary font-medium mx-0.5 uppercase">
+                          {s.weight_unit}
                         </span>
                         ×{s.reps}
                         {s.rir !== null && (

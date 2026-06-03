@@ -30,6 +30,8 @@ CREATE TABLE exercises (
   secondary_muscle_ids uuid[] DEFAULT '{}',
   equipment            text DEFAULT 'barbell'
                          CHECK (equipment IN ('barbell','dumbbell','machine','cable','bodyweight','other')),
+  weight_unit          text NOT NULL DEFAULT 'kg'
+                         CHECK (weight_unit IN ('kg','lbs')),
   icon                 text DEFAULT '🏋️',
   is_favorite          boolean DEFAULT false,
   instructions         text,
@@ -59,7 +61,9 @@ CREATE TABLE workout_sets (
   exercise_id    uuid REFERENCES exercises NOT NULL,
   exercise_order smallint NOT NULL,
   set_number     smallint NOT NULL,
-  weight_kg      numeric(6,2) DEFAULT 0,
+  weight_kg      numeric(6,2) DEFAULT 0, -- ham değer; birim weight_unit'ta
+  weight_unit    text NOT NULL DEFAULT 'kg'
+                   CHECK (weight_unit IN ('kg','lbs')),
   reps           smallint,
   rir            smallint CHECK (rir BETWEEN 0 AND 5),
   set_type       text DEFAULT 'working'
